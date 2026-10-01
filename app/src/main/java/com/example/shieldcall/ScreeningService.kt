@@ -34,6 +34,7 @@ class ScreeningService : CallScreeningService() {
         if (listed || (matched && action != "popup")) {
             if (!listed && action == "block" && key != null) dao.block(BlockedNumber(key, ""))
             logCall(dao, key, number, name, "Blocked")
+            dao.addHangup(HangupEntry(number = key ?: number, time = System.currentTimeMillis(), secondsSaved = 15))
             respondToCall(
                 details,
                 CallResponse.Builder().setDisallowCall(true).setRejectCall(true).setSkipNotification(true).build()

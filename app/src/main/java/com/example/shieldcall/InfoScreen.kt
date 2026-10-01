@@ -51,6 +51,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     var listed by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(number) {
+        Reports.recordProfileView(context)
         listed = SpamDb.get(context).dao().find(number)?.uppercase()
             ?: if (Skip.isSpam("+$number") == true) "SPAM" else null
     }
@@ -156,7 +157,16 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                     onClick = { scope.launch { if (Auth.signIn(context)) { signed = true; reload++ } } },
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Sign in with Google to vote or review") }
-                else VoteRow(i.myVote) { type -> act { Reports.report(tail, type).await() } }
+                else VoteRow(i.myVote) { type ->
+                    act {
+                        Reports.report(tail, type).await()
+                        withContext(Dispatchers.IO) {
+                            SpamDb.get(context).dao().addIdentification(
+                                IdentificationEntry(number = tail, type = type, time = System.currentTimeMillis())
+                            )
+                        }
+                    }
+                }
             }
             item {
                 val v = i.myVote

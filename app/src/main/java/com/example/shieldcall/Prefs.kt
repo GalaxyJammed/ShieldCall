@@ -28,6 +28,8 @@ object Prefs {
         private set
     var recentLookups by mutableStateOf<List<String>>(emptyList())
         private set
+    var anonymousReviews by mutableStateOf(false)
+        private set
 
     private fun prefs(c: Context) = c.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -42,8 +44,14 @@ object Prefs {
         fingerprint = prefs(c).getBoolean("fingerprint", false)
         pinLock = prefs(c).getBoolean("pinLock", false)
         pinCode = prefs(c).getString("pinCode", "1234") ?: "1234"
+        anonymousReviews = prefs(c).getBoolean("anonymousReviews", false)
         val recentsStr = prefs(c).getString("recentLookups", "") ?: ""
         recentLookups = if (recentsStr.isBlank()) emptyList() else recentsStr.split(",")
+    }
+
+    fun setAnonymousReviews(c: Context, v: Boolean) {
+        anonymousReviews = v
+        prefs(c).edit().putBoolean("anonymousReviews", v).apply()
     }
 
     fun setDark(c: Context, v: Boolean) {

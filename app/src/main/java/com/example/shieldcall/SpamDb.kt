@@ -30,6 +30,22 @@ data class CallEntry(
     val time: Long
 )
 
+@Entity(tableName = "identifications")
+data class IdentificationEntry(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val number: String,
+    val type: String, // "spam", "scam", "safe"
+    val time: Long
+)
+
+@Entity(tableName = "hangups")
+data class HangupEntry(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val number: String,
+    val time: Long,
+    val secondsSaved: Int = 15
+)
+
 @Dao
 interface SpamDao {
     @Query("SELECT type FROM numbers WHERE number = :tail LIMIT 1")
@@ -64,6 +80,36 @@ interface SpamDao {
 
     @Query("SELECT * FROM calls ORDER BY time DESC LIMIT 10")
     fun recentFlow(): Flow<List<CallEntry>>
+
+    @Insert
+    fun addIdentification(item: IdentificationEntry)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun addIdentifications(items: List<IdentificationEntry>)
+
+    @Query("SELECT * FROM identifications ORDER BY time DESC")
+    fun identificationsFlow(): Flow<List<IdentificationEntry>>
+
+    @Query("SELECT * FROM identifications")
+    fun getAllIdentifications(): List<IdentificationEntry>
+
+    @Insert
+    fun addHangup(item: HangupEntry)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    fun addHangups(items: List<HangupEntry>)
+
+    @Query("SELECT * FROM hangups ORDER BY time DESC")
+    fun hangupsFlow(): Flow<List<HangupEntry>>
+
+    @Query("SELECT * FROM hangups")
+    fun getAllHangups(): List<HangupEntry>
+
+    @Query("DELETE FROM identifications")
+    fun clearIdentifications()
+
+    @Query("DELETE FROM hangups")
+    fun clearHangups()
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -78,7 +124,18 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
     }
 }
 
-@Database(entities = [SpamNumber::class, BlockedNumber::class, CallEntry::class], version = 3, exportSchema = false)
+private val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `identifications` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `number` TEXT NOT NULL, `type` TEXT NOT NULL, `time` INTEGER NOT NULL)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `hangups` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `number` TEXT NOT NULL, `time` INTEGER NOT NULL, `secondsSaved` INTEGER NOT NULL)")
+    }
+}
+
+@Database(
+    entities = [SpamNumber::class, BlockedNumber::class, CallEntry::class, IdentificationEntry::class, HangupEntry::class],
+    version = 4,
+    exportSchema = false
+)
 abstract class SpamDb : RoomDatabase() {
     abstract fun dao(): SpamDao
 
@@ -87,7 +144,7 @@ abstract class SpamDb : RoomDatabase() {
 
         fun get(context: Context): SpamDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, SpamDb::class.java, "spam.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .allowMainThreadQueries()
                 .build()
                 .also { instance = it }

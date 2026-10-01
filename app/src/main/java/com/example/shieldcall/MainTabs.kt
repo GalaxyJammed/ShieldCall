@@ -17,6 +17,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
@@ -35,7 +36,9 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun MainTabs(tab: Int, onTab: (Int) -> Unit, onNumber: (String) -> Unit, onSettings: () -> Unit) {
@@ -53,6 +56,7 @@ fun MainTabs(tab: Int, onTab: (Int) -> Unit, onNumber: (String) -> Unit, onSetti
                 when (t) {
                     0 -> LookupScreen(onNumber, onSettings)
                     1 -> ContactsScreen(onNumber)
+                    2 -> StatsScreen()
                     else -> PreferencesScreen()
                 }
             }
@@ -75,9 +79,10 @@ private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
     val items = listOf(
         "Lookup" to Icons.Default.Search,
         "Contacts" to Icons.Default.Contacts,
+        "Stats" to Icons.Default.BarChart,
         "Preferences" to Icons.Default.Tune
     )
-    Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)) {
+    Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(24.dp),
@@ -108,7 +113,7 @@ private fun BarItem(label: String, icon: ImageVector, selected: Boolean, modifie
         if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         label = "tint"
     )
-    val padding by animateDpAsState(if (selected) 24.dp else 12.dp, label = "padding")
+    val padding by animateDpAsState(if (selected) 12.dp else 4.dp, label = "padding")
     Column(
         modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -116,6 +121,14 @@ private fun BarItem(label: String, icon: ImageVector, selected: Boolean, modifie
         Box(Modifier.background(pill, RoundedCornerShape(50)).padding(horizontal = padding, vertical = 6.dp)) {
             Icon(imageVector = icon, contentDescription = label, tint = tint, modifier = Modifier.scale(scale))
         }
-        Text(label, style = MaterialTheme.typography.labelMedium, color = tint)
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontSize = 11.sp,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Ellipsis,
+            color = tint
+        )
     }
 }

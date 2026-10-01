@@ -81,7 +81,9 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                         onDismiss = { stopSelf() },
                         onReport = { type ->
                             val tail = Reports.key(number, Reports.region(this@OverlayService)) ?: number
-                            SpamDb.get(this@OverlayService).dao().insert(SpamNumber(tail, type))
+                            val dao = SpamDb.get(this@OverlayService).dao()
+                            dao.insert(SpamNumber(tail, type))
+                            dao.addIdentification(IdentificationEntry(number = tail, type = type, time = System.currentTimeMillis()))
                             Reports.report(tail, type)
                             stopSelf()
                         }
