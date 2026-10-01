@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "119648218254",
+    "project_id": "shieldcall-64f46",
+    "storage_bucket": "shieldcall-64f46.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:119648218254:android:3fb7993f6d0d4bc666eddf",
+        "android_client_info": {
+          "package_name": "com.example.shieldcall"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "119648218254-51u2gufmt201f0boa6fcindpfvkmha16.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.shieldcall",
+            "certificate_hash": "16b8699106d0d5a94aabebd5b02118f2e75848e1"
+          }
+        },
+        {
+          "client_id": "119648218254-ai3s6ic4g3pbiubb92igv78odjl9ojhf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqPfQYycdVFoX5JMsk5_r3X1ymmn-ixoo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "119648218254-ai3s6ic4g3pbiubb92igv78odjl9ojhf.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
