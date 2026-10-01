@@ -42,16 +42,13 @@ class ScreeningService : CallScreeningService() {
         }
 
         if (Prefs.lookupEnabled(this) || matched) {
-            val local = name ?: key?.let { dao.find(it)?.uppercase() }
-            showOverlay(number, local ?: "Unknown number")
-            if (local == null && key != null) {
+            showOverlay(number, name)
+            if (name == null && key != null) {
                 Reports.lookup(key) {
                     dao.insert(SpamNumber(key, it))
-                    showOverlay(number, it.uppercase())
                 }
                 Skip.check("+$key") {
                     dao.insert(SpamNumber(key, "spam"))
-                    showOverlay(number, "SPAM")
                 }
             }
         }
@@ -83,11 +80,11 @@ class ScreeningService : CallScreeningService() {
         }
     }
 
-    private fun showOverlay(number: String, label: String) {
+    private fun showOverlay(number: String, contactName: String?) {
         startService(
             Intent(this, OverlayService::class.java)
                 .putExtra("number", number)
-                .putExtra("label", label)
+                .putExtra("contactName", contactName)
         )
     }
 

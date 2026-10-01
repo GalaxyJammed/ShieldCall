@@ -9,6 +9,8 @@ import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
 import kotlinx.coroutines.tasks.await
 import android.content.Context
+import android.net.Uri
+import android.provider.ContactsContract
 import android.telephony.TelephonyManager
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
@@ -16,6 +18,7 @@ import java.util.Locale
 
 data class Review(val type: String, val text: String, val mine: Boolean)
 data class Info(val spam: Long, val scam: Long, val safe: Long, val myVote: String?, val reviews: List<Review>)
+data class ContactInfo(val name: String?, val photo: String?)
 
 object Reports {
     private const val THRESHOLD = 3
@@ -99,5 +102,38 @@ object Reports {
             val safe = doc.getLong("safe") ?: 0
             if (spam + scam >= THRESHOLD && spam + scam > safe) onResult(if (scam > spam) "scam" else "spam")
         }
+    }
+
+    fun loadContactInfo(context: Context, number: String): ContactInfo {
+        val reg = region(context)
+        val k = key(number, reg) ?: number
+        val queries = listOf(number, "+$number", k)
+        for (q in queries) {
+            if (q.isBlank()) continue
+            try {
+                val uri = Uri.withAppendedPath(
+                    ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
+                    Uri.encode(q),
+                )
+                context.contentResolver.query(
+                    uri,
+                    arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_THUMBNAIL_URI),
+                    null,
+                    null,
+                    null,
+                )?.use { c ->
+                    if (c.moveToFirst()) {
+                        return ContactInfo(c.getString(0), c.getString(1))
+                    }
+                }
+            } catch (_: Exception) {
+                // ignore
+            }
+        }
+        return ContactInfo(null, null)
+    }
+
+    fun loadContactName(context: Context, number: String): String? {
+        return loadContactInfo(context, number).name
     }
 }

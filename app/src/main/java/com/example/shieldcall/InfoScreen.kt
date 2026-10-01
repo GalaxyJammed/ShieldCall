@@ -1,7 +1,12 @@
 package com.example.shieldcall
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import android.provider.ContactsContract
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
@@ -30,35 +35,6 @@ private fun colorOf(type: String) = when (type) {
     "safe" -> Green
     "spam" -> Amber
     else -> Red
-}
-
-private fun loadContactName(context: Context, number: String): String? {
-    val region = Reports.region(context)
-    val key = Reports.key(number, region) ?: number
-    val queries = listOf(number, "+$number", key)
-    for (q in queries) {
-        if (q.isBlank()) continue
-        try {
-            val uri = Uri.withAppendedPath(
-                ContactsContract.PhoneLookup.CONTENT_FILTER_URI,
-                Uri.encode(q),
-            )
-            context.contentResolver.query(
-                uri,
-                arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME),
-                null,
-                null,
-                null,
-            )?.use { c ->
-                if (c.moveToFirst()) {
-                    return c.getString(0)
-                }
-            }
-        } catch (_: Exception) {
-            // ignore
-        }
-    }
-    return null
 }
 
 @Composable
@@ -130,7 +106,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                 Column(Modifier.padding(16.dp)) {
                     val contactName by produceState<String?>(null, number) {
                         value = withContext(Dispatchers.IO) {
-                            loadContactName(context, number)
+                            Reports.loadContactName(context, number)
                         }
                     }
                     Text(
@@ -139,10 +115,21 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(4.dp))
+                    val clipboardManager = LocalClipboardManager.current
                     Text(
                         "+$number",
                         style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.combinedClickable(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:+$number"))
+                                context.startActivity(intent)
+                            },
+                            onLongClick = {
+                                clipboardManager.setText(AnnotatedString("+$number"))
+                                Toast.makeText(context, "Number copied", Toast.LENGTH_SHORT).show()
+                            }
+                        )
                     )
                 }
             }

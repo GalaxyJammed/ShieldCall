@@ -26,6 +26,8 @@ object Prefs {
         private set
     var pinCode by mutableStateOf("1234")
         private set
+    var recentLookups by mutableStateOf<List<String>>(emptyList())
+        private set
 
     private fun prefs(c: Context) = c.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -40,6 +42,8 @@ object Prefs {
         fingerprint = prefs(c).getBoolean("fingerprint", false)
         pinLock = prefs(c).getBoolean("pinLock", false)
         pinCode = prefs(c).getString("pinCode", "1234") ?: "1234"
+        val recentsStr = prefs(c).getString("recentLookups", "") ?: ""
+        recentLookups = if (recentsStr.isBlank()) emptyList() else recentsStr.split(",")
     }
 
     fun setDark(c: Context, v: Boolean) {
@@ -87,4 +91,15 @@ object Prefs {
     fun flag(c: Context, key: String) = prefs(c).getBoolean(key, false)
 
     fun actionOf(c: Context) = prefs(c).getString("action", "popup") ?: "popup"
+
+    fun addRecentLookup(c: Context, number: String) {
+        val current = recentLookups.toMutableList()
+        current.remove(number)
+        current.add(0, number)
+        if (current.size > 3) {
+            current.removeAt(current.size - 1)
+        }
+        recentLookups = current
+        prefs(c).edit().putString("recentLookups", current.joinToString(",")).apply()
+    }
 }
