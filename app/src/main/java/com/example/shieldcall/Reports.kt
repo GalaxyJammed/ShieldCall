@@ -175,7 +175,7 @@ object Reports {
         db.collection("users").document(uid).set(
             mapOf(
                 "profileViews" to FieldValue.increment(1),
-                "viewCountries.$countryName" to FieldValue.increment(1)
+                "viewCountries" to mapOf(countryName to FieldValue.increment(1))
             ),
             SetOptions.merge()
         )
@@ -187,7 +187,7 @@ object Reports {
         db.collection("users").document(uid).set(
             mapOf(
                 "profileSearches" to FieldValue.increment(1),
-                "searchCountries.$countryName" to FieldValue.increment(1)
+                "searchCountries" to mapOf(countryName to FieldValue.increment(1))
             ),
             SetOptions.merge()
         )
@@ -264,26 +264,6 @@ object Reports {
             }
 
             try {
-                val reportsDocs = db.collection("reports").get().await().documents
-                for (reportDoc in reportsDocs) {
-                    try {
-                        val voteDoc = reportDoc.reference.collection("votes").document(uid).get().await()
-                        if (voteDoc.exists()) {
-                            val num = reportDoc.id
-                            val type = voteDoc.getString("type") ?: ""
-                            val time = voteDoc.getLong("time") ?: System.currentTimeMillis()
-                            if (num.isNotBlank() && type.isNotBlank()) {
-                                if (userVotesList.none { it.number == num }) {
-                                    userVotesList.add(IdentificationEntry(number = num, type = type, time = time))
-                                }
-                                userDocRef.collection("votes").document(num).set(
-                                    mapOf("number" to num, "type" to type, "time" to time),
-                                    SetOptions.merge()
-                                )
-                            }
-                        }
-                    } catch (_: Exception) {}
-                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -390,7 +370,6 @@ object Reports {
         return try {
             val dao = SpamDb.get(context).dao()
 
-            // 1. Clear user votes & reviews from Firestore reports
             try {
                 val userVotesSnapshot = db.collection("users").document(uid).collection("votes").get().await()
                 for (voteDoc in userVotesSnapshot.documents) {
@@ -423,37 +402,13 @@ object Reports {
                 e.printStackTrace()
             }
 
-            // 2. Also check all reports in case there are reviews or votes without explicit user vote doc
             try {
-                val reportsDocs = db.collection("reports").get().await().documents
-                for (reportDoc in reportsDocs) {
-                    try {
-                        val voteDoc = reportDoc.reference.collection("votes").document(uid).get().await()
-                        if (voteDoc.exists()) {
-                            val voteType = voteDoc.getString("type")
-                            voteDoc.reference.delete().await()
-                            if (voteType != null) {
-                                reportDoc.reference.set(
-                                    mapOf(voteType to FieldValue.increment(-1)),
-                                    SetOptions.merge()
-                                ).await()
-                            }
-                        }
-
-                        val reviewDoc = reportDoc.reference.collection("reviews").document(uid).get().await()
-                        if (reviewDoc.exists()) {
-                            reviewDoc.reference.delete().await()
-                        }
-                    } catch (_: Exception) {}
-                }
             } catch (_: Exception) {}
 
-            // 3. Delete user profile document
             try {
                 db.collection("users").document(uid).delete().await()
             } catch (_: Exception) {}
 
-            // 4. Clear local SQLite database tables & prefs
             try {
                 dao.clear()
                 dao.clearIdentifications()
@@ -466,7 +421,6 @@ object Reports {
                 e.printStackTrace()
             }
 
-            // 5. Delete user account from Firebase Auth
             try {
                 user.delete().await()
             } catch (_: Exception) {

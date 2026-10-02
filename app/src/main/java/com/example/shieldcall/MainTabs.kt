@@ -80,7 +80,7 @@ private fun BottomBar(selected: Int, onSelect: (Int) -> Unit) {
         "Lookup" to Icons.Default.Search,
         "Contacts" to Icons.Default.Contacts,
         "Stats" to Icons.Default.BarChart,
-        "Preferences" to Icons.Default.Tune
+        "Security" to Icons.Default.Tune
     )
     Box(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
         Card(

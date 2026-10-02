@@ -18,7 +18,11 @@ import kotlinx.coroutines.flow.Flow
 data class SpamNumber(@PrimaryKey val number: String, val type: String, val source: String = "list")
 
 @Entity(tableName = "blocked")
-data class BlockedNumber(@PrimaryKey val number: String, val name: String)
+data class BlockedNumber(
+    @PrimaryKey val number: String,
+    val name: String,
+    val type: String = "number"
+)
 
 @Entity(tableName = "calls")
 data class CallEntry(
@@ -74,6 +78,9 @@ interface SpamDao {
 
     @Query("SELECT * FROM blocked")
     fun blockedFlow(): Flow<List<BlockedNumber>>
+
+    @Query("SELECT * FROM blocked")
+    fun blockedList(): List<BlockedNumber>
 
     @Insert
     fun addCall(item: CallEntry)
@@ -154,9 +161,17 @@ private val MIGRATION_4_5 = object : Migration(4, 5) {
     }
 }
 
+private val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        if (!hasColumn(db, "blocked", "type")) {
+            db.execSQL("ALTER TABLE blocked ADD COLUMN type TEXT NOT NULL DEFAULT 'number'")
+        }
+    }
+}
+
 @Database(
     entities = [SpamNumber::class, BlockedNumber::class, CallEntry::class, IdentificationEntry::class, HangupEntry::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class SpamDb : RoomDatabase() {
@@ -167,7 +182,7 @@ abstract class SpamDb : RoomDatabase() {
 
         fun get(context: Context): SpamDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, SpamDb::class.java, "spam.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .allowMainThreadQueries()
                 .build()
                 .also { instance = it }

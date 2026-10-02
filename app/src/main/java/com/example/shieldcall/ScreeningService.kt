@@ -9,6 +9,7 @@ import android.telecom.CallScreeningService
 import android.telecom.TelecomManager
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberType
+import java.util.Locale
 
 class ScreeningService : CallScreeningService() {
 
@@ -26,6 +27,27 @@ class ScreeningService : CallScreeningService() {
         val key = Reports.key(number, region)
         val name = contactName(number)
         val dao = SpamDb.get(this).dao()
+        val blockedList = dao.blockedList()
+        val blockedNumbers = blockedList.filter { it.type == "number" }.map { it.number }
+        val blockedNames = blockedList.filter { it.type == "name" }.map { it.number.lowercase() }
+        val blockedCountries = blockedList.filter { it.type == "country" }.map { it.number.lowercase() }
+
+        val callRegion = try {
+            PhoneNumberUtil.getInstance().parse(number, region).let { PhoneNumberUtil.getInstance().getRegionCodeForNumber(it) }
+        } catch (e: Exception) {
+            region
+        }
+        val countryName = try {
+            Locale.Builder().setRegion(callRegion).build().displayCountry.lowercase()
+        } catch (e: Exception) {
+            ""
+        }
+
+        val isNumberBlocked = key != null && (key in blockedNumbers || dao.isBlocked(key) > 0)
+        val isNameBlocked = name != null && blockedNames.any { name.lowercase().contains(it) }
+        val isCountryBlocked = countryName in blockedCountries || callRegion.lowercase() in blockedCountries
+        val listed = isNumberBlocked || isNameBlocked || isCountryBlocked
+
         val hidden = number.isEmpty() || details.handlePresentation != TelecomManager.PRESENTATION_ALLOWED
         val action = Prefs.actionOf(this)
         val spamScamType = key?.let { dao.find(it)?.lowercase() }
@@ -37,7 +59,6 @@ class ScreeningService : CallScreeningService() {
                         (Prefs.flag(this, "foreign") && isForeign(number, region)) ||
                         (Prefs.flag(this, "business") && isBusiness(number, region))
                 )
-        val listed = key != null && dao.isBlocked(key) > 0
 
         if (listed || (matched && action != "popup")) {
             if (!listed && action == "block" && key != null) dao.block(BlockedNumber(key, ""))

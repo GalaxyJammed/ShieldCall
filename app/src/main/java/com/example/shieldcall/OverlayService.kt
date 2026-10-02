@@ -511,7 +511,6 @@ fun FullScreenCallCard(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top: Caller Info
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -547,14 +546,12 @@ fun FullScreenCallCard(
                 }
             }
 
-            // Bottom: Accept / Decline / Decline Prompt
             if (!showDeclineReason) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Decline Circle Button
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconButton(
                             onClick = { showDeclineReason = true },
@@ -573,7 +570,6 @@ fun FullScreenCallCard(
                         Text("Decline", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
-                    // Accept Circle Button
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconButton(
                             onClick = onDismiss,

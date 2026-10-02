@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CallEnd
@@ -16,12 +17,19 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 private fun flagValue(key: String) = when (key) {
     "spamScam" -> Prefs.spamScam
@@ -36,9 +44,10 @@ fun PreferencesScreen() {
     val context = LocalContext.current
     val dao = remember { SpamDb.get(context).dao() }
     val blocked by dao.blockedFlow().collectAsState(emptyList())
+    var showAddDialog by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
-        ScreenTitle("Preferences")
+        ScreenTitle("Security")
         Spacer(Modifier.height(16.dp))
         Section("Block calls from")
         ShieldCard(Modifier.fillMaxWidth()) {
@@ -68,21 +77,152 @@ fun PreferencesScreen() {
             ActionRow(Icons.Default.Block, "Block the number", "Reject it and add it to blocked numbers", "block")
         }
         Spacer(Modifier.height(24.dp))
-        Section("Blocked numbers")
+        Section("Blocked numbers (${blocked.size})")
         ShieldCard(Modifier.fillMaxWidth()) {
-            if (blocked.isEmpty()) Text("No blocked numbers", Modifier.padding(16.dp))
-            blocked.forEachIndexed { i, b ->
-                if (i > 0) HorizontalDivider()
-                Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text(b.name.ifBlank { "+${b.number}" }, style = MaterialTheme.typography.titleMedium)
-                        if (b.name.isNotBlank()) Text("+${b.number}", style = MaterialTheme.typography.bodySmall)
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("Blocklist manager", style = MaterialTheme.typography.titleMedium)
+                    Text("Add numbers, names, or countries to block", style = MaterialTheme.typography.bodySmall)
+                }
+                Button(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Add")
+                }
+            }
+            if (blocked.isNotEmpty()) HorizontalDivider()
+            if (blocked.isEmpty()) {
+                Text("No blocked items", Modifier.padding(16.dp))
+            } else {
+                blocked.forEachIndexed { i, b ->
+                    if (i > 0) HorizontalDivider()
+                    Row(
+                        Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            val typeLabel = when (b.type) {
+                                "name" -> "Blocked Name"
+                                "country" -> "Blocked Country"
+                                else -> "Phone Number"
+                            }
+                            Text(b.name.ifBlank { if (b.type == "number") "+${b.number}" else b.number }, style = MaterialTheme.typography.titleMedium)
+                            Text("$typeLabel: ${if (b.type == "number") "+${b.number}" else b.number}", style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = { dao.unblock(b.number) }) { Text("Unblock") }
                     }
-                    TextButton(onClick = { dao.unblock(b.number) }) { Text("Unblock") }
                 }
             }
         }
         Spacer(Modifier.height(24.dp))
+    }
+
+    if (showAddDialog) {
+        AddToBlocklistDialog(
+            onDismiss = { showAddDialog = false },
+            onAdd = { value, name, type ->
+                dao.block(BlockedNumber(number = value, name = name, type = type))
+                showAddDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddToBlocklistDialog(onDismiss: () -> Unit, onAdd: (String, String, String) -> Unit) {
+    var selectedTab by remember { mutableStateOf(0) }
+    var numberInput by remember { mutableStateOf("") }
+    var nameInput by remember { mutableStateOf("") }
+    var countryInput by remember { mutableStateOf(countries.first()) }
+    var pickingCountry by remember { mutableStateOf(false) }
+    val enabled = when (selectedTab) {
+        0 -> numberInput.isNotBlank()
+        1 -> nameInput.isNotBlank()
+        else -> true
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        ShieldCard(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+            Column(Modifier.padding(20.dp)) {
+                Text("Add to blocklist", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(12.dp))
+                TabRow(selectedTabIndex = selectedTab, containerColor = Color.Transparent) {
+                    listOf("Phone", "Name", "Country").forEachIndexed { i, label ->
+                        Tab(
+                            selected = selectedTab == i,
+                            onClick = { selectedTab = i },
+                            text = { Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1) }
+                        )
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+                when (selectedTab) {
+                    0 -> {
+                        OutlinedTextField(
+                            value = numberInput,
+                            onValueChange = { numberInput = it.filter(Char::isDigit) },
+                            label = { Text("Phone number") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = nameInput,
+                            onValueChange = { nameInput = it },
+                            label = { Text("Name / Note (optional)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    1 -> OutlinedTextField(
+                        value = nameInput,
+                        onValueChange = { nameInput = it },
+                        label = { Text("Specific name in calls") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    else -> OutlinedButton(
+                        onClick = { pickingCountry = true },
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    ) {
+                        Text("${countryInput.flag}  ${countryInput.name} (+${countryInput.code})")
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        enabled = enabled,
+                        onClick = {
+                            when (selectedTab) {
+                                0 -> onAdd(numberInput, nameInput.ifBlank { "+$numberInput" }, "number")
+                                1 -> onAdd(nameInput.lowercase(), nameInput, "name")
+                                else -> onAdd(countryInput.name.lowercase(), countryInput.name, "country")
+                            }
+                        }
+                    ) { Text("Block") }
+                }
+            }
+        }
+    }
+
+    if (pickingCountry) {
+        CountryPicker(
+            onPick = {
+                countryInput = it
+                pickingCountry = false
+            },
+            onDismiss = { pickingCountry = false }
+        )
     }
 }
 

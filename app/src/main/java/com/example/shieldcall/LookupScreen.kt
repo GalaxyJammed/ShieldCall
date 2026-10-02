@@ -214,7 +214,7 @@ private fun Avatar(name: String, photo: String?) {
 }
 
 @Composable
-private fun CountryPicker(onPick: (Country) -> Unit, onDismiss: () -> Unit) {
+internal fun CountryPicker(onPick: (Country) -> Unit, onDismiss: () -> Unit) {
     var query by remember { mutableStateOf("") }
     val list = remember(query) {
         countries.filter { it.name.contains(query, true) || it.code.toString().startsWith(query.removePrefix("+")) }

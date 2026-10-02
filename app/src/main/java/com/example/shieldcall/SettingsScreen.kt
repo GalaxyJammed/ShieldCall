@@ -355,7 +355,7 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(24.dp))
 
-        Section("Security")
+        Section("Lock-screen")
         ShieldCard(Modifier.fillMaxWidth()) {
             Column {
                 SettingRow(Icons.Default.Fingerprint, "Fingerprint lock", "Unlock app with fingerprint on entry", Prefs.fingerprint) {
