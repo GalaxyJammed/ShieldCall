@@ -77,7 +77,7 @@ fun StatsScreen() {
 
     var viewMode by remember { mutableStateOf(GraphViewMode.DAILY) }
     var userAnalytics by remember { mutableStateOf(UserAnalytics()) }
-    var selectedDetailType by remember { mutableStateOf<String?>(null) } // "views" or "searches"
+    var selectedDetailType by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         userAnalytics = Reports.loadUserAnalytics()
@@ -272,7 +272,6 @@ fun StatsScreen() {
         Section("Identification Activity")
         ShieldCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                // Top controls with arrows for switching graph view modes
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -377,7 +376,6 @@ fun StatsScreen() {
 
                 Spacer(Modifier.height(16.dp))
 
-                // Chart Legend
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly,
@@ -531,7 +529,6 @@ private fun ActivityGraphCanvas(barDataList: List<BarData>) {
 
             val spacing = width / barCount
 
-            // Draw grid lines
             val gridColor = Color.Gray.copy(alpha = 0.2f)
             for (i in 1..3) {
                 val y = chartHeight * (1f - i / 3f)
@@ -555,7 +552,6 @@ private fun ActivityGraphCanvas(barDataList: List<BarData>) {
 
                     var currentY = chartHeight
 
-                    // Safe segment (bottom)
                     if (safeH > 0f) {
                         currentY -= safeH
                         drawRoundRect(
@@ -566,7 +562,6 @@ private fun ActivityGraphCanvas(barDataList: List<BarData>) {
                         )
                     }
 
-                    // Scam segment (middle)
                     if (scamH > 0f) {
                         currentY -= scamH
                         drawRoundRect(
@@ -577,7 +572,6 @@ private fun ActivityGraphCanvas(barDataList: List<BarData>) {
                         )
                     }
 
-                    // Spam segment (top)
                     if (spamH > 0f) {
                         currentY -= spamH
                         drawRoundRect(
@@ -588,7 +582,6 @@ private fun ActivityGraphCanvas(barDataList: List<BarData>) {
                         )
                     }
                 } else {
-                    // Empty bar placeholder line
                     drawRoundRect(
                         color = Color.Gray.copy(alpha = 0.2f),
                         topLeft = Offset(left, chartHeight - 4.dp.toPx()),
@@ -597,7 +590,6 @@ private fun ActivityGraphCanvas(barDataList: List<BarData>) {
                     )
                 }
 
-                // Draw X-axis text label centered directly at centerX
                 val textLayoutResult = textMeasurer.measure(bar.label, labelStyle)
                 drawText(
                     textLayoutResult = textLayoutResult,

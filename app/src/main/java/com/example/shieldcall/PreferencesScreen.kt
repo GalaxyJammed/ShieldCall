@@ -8,9 +8,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CallEnd
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 
 private fun flagValue(key: String) = when (key) {
+    "spamScam" -> Prefs.spamScam
     "business" -> Prefs.business
     "foreign" -> Prefs.foreign
     "unknown" -> Prefs.unknown
@@ -42,6 +43,7 @@ fun PreferencesScreen() {
         Section("Block calls from")
         ShieldCard(Modifier.fillMaxWidth()) {
             listOf(
+                Triple(Icons.Default.ReportProblem, "Spam & scam", "spamScam"),
                 Triple(Icons.Default.Business, "Businesses", "business"),
                 Triple(Icons.Default.Public, "Other countries", "foreign"),
                 Triple(Icons.Default.VisibilityOff, "Unknown numbers", "unknown"),
@@ -49,6 +51,7 @@ fun PreferencesScreen() {
             ).forEachIndexed { i, (icon, title, key) ->
                 if (i > 0) HorizontalDivider()
                 val text = when (key) {
+                    "spamScam" -> "More votes in spam or scam than safe"
                     "business" -> "Toll-free, premium and VoIP numbers"
                     "foreign" -> "Calls from outside your country"
                     "unknown" -> "Hidden or withheld caller ID"
@@ -61,8 +64,6 @@ fun PreferencesScreen() {
         Section("When a call matches")
         ShieldCard(Modifier.fillMaxWidth()) {
             ActionRow(Icons.Default.CallEnd, "Hang up immediately", "Reject the call without ringing", "hangup")
-            HorizontalDivider()
-            ActionRow(Icons.Default.Info, "Show caller info", "Show the safety card while it rings", "popup")
             HorizontalDivider()
             ActionRow(Icons.Default.Block, "Block the number", "Reject it and add it to blocked numbers", "block")
         }

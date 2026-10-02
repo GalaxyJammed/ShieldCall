@@ -49,10 +49,9 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Block or unblock any contact or number with one tap
 
 ### 🛡️ Smart Blocking Preferences
-- Block calls from **Businesses**, **Other countries**, **Unknown numbers** or **Unsaved numbers**
+- Block calls from **Spam & scam**, **Businesses**, **Other countries**, **Unknown numbers** or **Unsaved numbers**
 - Choose what happens when a call matches:
   - **Hang up immediately**
-  - **Show caller info** with the safety screen
   - **Block the number** and add it to your blocked list
 - Saved contacts are never caught by the category rules
 

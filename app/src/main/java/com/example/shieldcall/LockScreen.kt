@@ -75,7 +75,6 @@ fun LockScreen(onUnlocked: () -> Unit) {
                     )
 
                     if (usePin) {
-                        // PIN dots indicator
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
                             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)

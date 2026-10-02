@@ -52,25 +52,17 @@ object Reports {
 
     fun signedIn() = auth.currentUser?.providerData?.any { it.providerId == "google.com" } == true
 
-    fun signIn() {
-        if (auth.currentUser == null) auth.signInAnonymously()
-    }
 
-    private suspend fun uid(): String {
-        if (auth.currentUser == null) auth.signInAnonymously().await()
-        return auth.currentUser!!.uid
-    }
+    private fun uid(): String = auth.currentUser?.uid ?: throw IllegalStateException("Not signed in")
 
-    fun report(tail: String, type: String): Task<Void> {
-        val uid = auth.currentUser?.uid ?: return Tasks.forException(IllegalStateException())
+    suspend fun report(context: Context, tail: String, type: String) {
+        val uid = uid()
+        val currentTime = System.currentTimeMillis()
         val doc = db.collection("reports").document(tail)
-        val userVoteDoc = db.collection("users").document(uid).collection("votes").document(tail)
+        val userDocRef = db.collection("users").document(uid)
         val batch = db.batch()
-        batch.set(doc.collection("votes").document(uid), mapOf("type" to type))
-        batch.set(
-            userVoteDoc,
-            mapOf("type" to type, "number" to tail, "time" to System.currentTimeMillis())
-        )
+        batch.set(doc.collection("votes").document(uid), mapOf("type" to type, "time" to currentTime))
+        batch.set(userDocRef.collection("votes").document(tail), mapOf("number" to tail, "type" to type, "time" to currentTime))
         batch.set(
             doc,
             mapOf(
@@ -80,7 +72,22 @@ object Reports {
             ),
             SetOptions.merge()
         )
-        return batch.commit()
+        batch.commit().await()
+
+        try {
+            val dao = SpamDb.get(context).dao()
+            dao.insert(SpamNumber(tail, type))
+            dao.deleteIdentifications(tail)
+            dao.addIdentification(IdentificationEntry(number = tail, type = type, time = currentTime))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        try {
+            syncUserStats(context)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     suspend fun review(tail: String, type: String, text: String, anonymous: Boolean = Prefs.anonymousReviews) {
@@ -96,33 +103,49 @@ object Reports {
     }
 
     suspend fun load(tail: String): Info {
-        val uid = uid()
-        val doc = db.collection("reports").document(tail)
-        val main = doc.get().await()
-        val mine = doc.collection("votes").document(uid).get().await().getString("type")
-        return Info(
-            main.getLong("spam") ?: 0,
-            main.getLong("scam") ?: 0,
-            main.getLong("safe") ?: 0,
-            mine,
-            emptyList()
-        )
+        if (tail.isBlank()) return Info(0, 0, 0, null, emptyList())
+        return try {
+            val uid = uid()
+            val doc = db.collection("reports").document(tail)
+            val main = doc.get().await()
+            val mine = if (main.exists()) {
+                try {
+                    doc.collection("votes").document(uid).get().await().getString("type")
+                } catch (_: Exception) {
+                    null
+                }
+            } else null
+            Info(
+                if (main.exists()) main.getLong("spam") ?: 0 else 0,
+                if (main.exists()) main.getLong("scam") ?: 0 else 0,
+                if (main.exists()) main.getLong("safe") ?: 0 else 0,
+                mine,
+                emptyList()
+            )
+        } catch (e: Exception) {
+            Info(0, 0, 0, null, emptyList())
+        }
     }
 
     suspend fun loadReviews(tail: String): List<Review> {
-        val uid = uid()
-        return db.collection("reports").document(tail).collection("reviews")
-            .orderBy("time", Query.Direction.DESCENDING)
-            .limit(10)
-            .get().await().documents
-            .map {
-                Review(
-                    it.getString("type").orEmpty(),
-                    it.getString("text").orEmpty(),
-                    it.id == uid,
-                    it.getString("authorName") ?: "Anonymous User"
-                )
-            }
+        if (tail.isBlank()) return emptyList()
+        return try {
+            val uid = uid()
+            db.collection("reports").document(tail).collection("reviews")
+                .orderBy("time", Query.Direction.DESCENDING)
+                .limit(10)
+                .get().await().documents
+                .map {
+                    Review(
+                        it.getString("type").orEmpty(),
+                        it.getString("text").orEmpty(),
+                        it.id == uid,
+                        it.getString("authorName") ?: "Anonymous User"
+                    )
+                }
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -171,6 +194,7 @@ object Reports {
     }
 
     fun lookup(tail: String, onResult: (String) -> Unit) {
+        if (!signedIn()) return
         db.collection("reports").document(tail).get().addOnSuccessListener { doc ->
             val spam = doc.getLong("spam") ?: 0
             val scam = doc.getLong("scam") ?: 0
@@ -202,7 +226,6 @@ object Reports {
                     }
                 }
             } catch (_: Exception) {
-                // ignore
             }
         }
         return ContactInfo(null, null)
@@ -225,7 +248,6 @@ object Reports {
         return try {
             val userDocRef = db.collection("users").document(uid)
 
-            // 1. Read votes saved under users/{uid}/votes (only reads documents for this user)
             val userVotesList = mutableListOf<IdentificationEntry>()
             try {
                 val votesSnapshot = userDocRef.collection("votes").get().await()
@@ -241,7 +263,31 @@ object Reports {
                 e.printStackTrace()
             }
 
-            // 2. Fetch main user document
+            try {
+                val reportsDocs = db.collection("reports").get().await().documents
+                for (reportDoc in reportsDocs) {
+                    try {
+                        val voteDoc = reportDoc.reference.collection("votes").document(uid).get().await()
+                        if (voteDoc.exists()) {
+                            val num = reportDoc.id
+                            val type = voteDoc.getString("type") ?: ""
+                            val time = voteDoc.getLong("time") ?: System.currentTimeMillis()
+                            if (num.isNotBlank() && type.isNotBlank()) {
+                                if (userVotesList.none { it.number == num }) {
+                                    userVotesList.add(IdentificationEntry(number = num, type = type, time = time))
+                                }
+                                userDocRef.collection("votes").document(num).set(
+                                    mapOf("number" to num, "type" to type, "time" to time),
+                                    SetOptions.merge()
+                                )
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             val remoteDoc = try {
                 userDocRef.get().await()
             } catch (e: Exception) {
@@ -278,16 +324,15 @@ object Reports {
                 }
             }
 
-            // 3. Get local Room entries
             val localIdentifications = dao.getAllIdentifications()
             val localHangups = dao.getAllHangups()
 
-            // 4. Merge all sources
             val mergedIdentificationsMap = mutableMapOf<String, IdentificationEntry>()
-            (localIdentifications + remoteIdentifications + userVotesList).forEach { item ->
-                val key = "${item.number}_${item.type}_${item.time}"
-                mergedIdentificationsMap[key] = item
-            }
+            (localIdentifications + remoteIdentifications + userVotesList)
+                .sortedBy { it.time }
+                .forEach { item ->
+                    mergedIdentificationsMap[item.number] = item
+                }
             val mergedIdentifications = mergedIdentificationsMap.values.toList()
 
             val mergedHangupsMap = mutableMapOf<String, HangupEntry>()
@@ -297,23 +342,24 @@ object Reports {
             }
             val mergedHangups = mergedHangupsMap.values.toList()
 
-            // 5. Update local Room database
-            if (mergedIdentifications.isNotEmpty()) {
-                try {
+            try {
+                dao.clearIdentifications()
+                if (mergedIdentifications.isNotEmpty()) {
                     dao.addIdentifications(mergedIdentifications.map { it.copy(id = 0) })
-                } catch (e: Exception) {
-                    e.printStackTrace()
                 }
-            }
-            if (mergedHangups.isNotEmpty()) {
-                try {
-                    dao.addHangups(mergedHangups.map { it.copy(id = 0) })
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
 
-            // 6. Write merged data back to Firestore
+            try {
+                dao.clearHangups()
+                if (mergedHangups.isNotEmpty()) {
+                    dao.addHangups(mergedHangups.map { it.copy(id = 0) })
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
             try {
                 val firestoreData = mapOf(
                     "identifications" to mergedIdentifications.map {
@@ -342,10 +388,42 @@ object Reports {
         val uid = user.uid
 
         return try {
-            try {
-                db.collection("users").document(uid).delete().await()
-            } catch (_: Exception) {}
+            val dao = SpamDb.get(context).dao()
 
+            // 1. Clear user votes & reviews from Firestore reports
+            try {
+                val userVotesSnapshot = db.collection("users").document(uid).collection("votes").get().await()
+                for (voteDoc in userVotesSnapshot.documents) {
+                    val number = voteDoc.getString("number") ?: voteDoc.id
+                    val type = voteDoc.getString("type")
+                    val reportRef = db.collection("reports").document(number)
+
+                    try {
+                        reportRef.collection("votes").document(uid).delete().await()
+                    } catch (_: Exception) {}
+
+                    try {
+                        reportRef.collection("reviews").document(uid).delete().await()
+                    } catch (_: Exception) {}
+
+                    if (!type.isNullOrBlank()) {
+                        try {
+                            reportRef.set(
+                                mapOf(type to FieldValue.increment(-1)),
+                                SetOptions.merge()
+                            ).await()
+                        } catch (_: Exception) {}
+                    }
+
+                    try {
+                        voteDoc.reference.delete().await()
+                    } catch (_: Exception) {}
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // 2. Also check all reports in case there are reviews or votes without explicit user vote doc
             try {
                 val reportsDocs = db.collection("reports").get().await().documents
                 for (reportDoc in reportsDocs) {
@@ -370,10 +448,25 @@ object Reports {
                 }
             } catch (_: Exception) {}
 
-            val dao = SpamDb.get(context).dao()
-            dao.clearIdentifications()
-            dao.clearHangups()
+            // 3. Delete user profile document
+            try {
+                db.collection("users").document(uid).delete().await()
+            } catch (_: Exception) {}
 
+            // 4. Clear local SQLite database tables & prefs
+            try {
+                dao.clear()
+                dao.clearIdentifications()
+                dao.clearHangups()
+                context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                    .edit()
+                    .remove("recentLookups")
+                    .apply()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            // 5. Delete user account from Firebase Auth
             try {
                 user.delete().await()
             } catch (_: Exception) {

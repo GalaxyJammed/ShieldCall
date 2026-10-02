@@ -1,6 +1,11 @@
 package com.example.shieldcall
 
+import android.app.Activity
+import android.app.role.RoleManager
+import android.content.Intent
 import android.graphics.BitmapFactory
+import android.provider.Settings
+import android.telecom.TelecomManager
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
@@ -22,11 +27,13 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -85,8 +92,105 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         Spacer(Modifier.height(16.dp))
 
+        val rm = context.getSystemService(RoleManager::class.java)
+        val tm = context.getSystemService(TelecomManager::class.java)
+        val isDefaultDialer = (rm?.isRoleHeld(RoleManager.ROLE_DIALER) == true) || (tm?.defaultDialerPackage == context.packageName)
+
+        if (!isDefaultDialer) {
+            ShieldCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = Color(0xFFC62828).copy(alpha = 0.15f)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(Color(0xFFC62828).copy(alpha = 0.2f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Warning,
+                                contentDescription = "Warning",
+                                tint = Color(0xFFC62828),
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+
+                        Spacer(Modifier.width(16.dp))
+
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Default Phone App Required",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFC62828)
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "Set ShieldCall as your default phone app to hide the system top call banner during calls.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Button(
+                        onClick = {
+                            val activity = context as? Activity
+                            var launched = false
+                            if (rm != null && rm.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                                try {
+                                    val intent = rm.createRequestRoleIntent(RoleManager.ROLE_DIALER)
+                                    if (activity != null) {
+                                        activity.startActivityForResult(intent, 1001)
+                                        launched = true
+                                    } else {
+                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        context.startActivity(intent)
+                                        launched = true
+                                    }
+                                } catch (_: Exception) {}
+                            }
+                            if (!launched) {
+                                try {
+                                    val intent = Intent(TelecomManager.ACTION_CHANGE_DEFAULT_DIALER).apply {
+                                        putExtra(TelecomManager.EXTRA_CHANGE_DEFAULT_DIALER_PACKAGE_NAME, context.packageName)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                    launched = true
+                                } catch (_: Exception) {}
+                            }
+                            if (!launched) {
+                                try {
+                                    val intent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS).apply {
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFC62828),
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Set as Default Phone App", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+        }
+
         if (googleSignedIn) {
-            // Full Google Account Card with stacked buttons
             ShieldCard(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp)) {
                     Row(
@@ -117,7 +221,6 @@ fun SettingsScreen(onBack: () -> Unit) {
 
                     Spacer(Modifier.height(20.dp))
 
-                    // Stacked Buttons (Vertical Column)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
                             onClick = { showProfileDialog = true },
@@ -166,7 +269,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             }
         } else {
-            // Simple "Add Google Account" card
             ShieldCard(Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
@@ -231,8 +333,14 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         Section("Appearance")
         ShieldCard(Modifier.fillMaxWidth()) {
-            SettingRow(Icons.Default.DarkMode, "Dark theme", "Black background instead of white", Prefs.dark) {
-                Prefs.setDark(context, it)
+            Column {
+                SettingRow(Icons.Default.DarkMode, "Dark theme", "Black background instead of white", Prefs.dark) {
+                    Prefs.setDark(context, it)
+                }
+                HorizontalDivider()
+                SettingRow(Icons.Default.PhoneInTalk, "Full-screen call popup", "Show full-screen incoming call screen instead of center box", Prefs.fullScreen) {
+                    Prefs.setFullScreen(context, it)
+                }
             }
         }
 

@@ -3,6 +3,7 @@ package com.example.shieldcall
 import android.content.Intent
 import android.net.Uri
 import android.provider.ContactsContract
+import android.provider.Settings
 import android.telecom.Call
 import android.telecom.CallScreeningService
 import android.telecom.TelecomManager
@@ -17,14 +18,21 @@ class ScreeningService : CallScreeningService() {
             return
         }
         val number = details.handle?.schemeSpecificPart.orEmpty()
+        if (number.isEmpty()) {
+            respondToCall(details, CallResponse.Builder().build())
+            return
+        }
         val region = Reports.region(this)
         val key = Reports.key(number, region)
         val name = contactName(number)
         val dao = SpamDb.get(this).dao()
         val hidden = number.isEmpty() || details.handlePresentation != TelecomManager.PRESENTATION_ALLOWED
         val action = Prefs.actionOf(this)
+        val spamScamType = key?.let { dao.find(it)?.lowercase() }
+        val isSpamScam = spamScamType == "spam" || spamScamType == "scam"
         val matched = name == null && (
-                Prefs.flag(this, "unsaved") ||
+                (Prefs.flag(this, "spamScam") && isSpamScam) ||
+                        Prefs.flag(this, "unsaved") ||
                         (Prefs.flag(this, "unknown") && hidden) ||
                         (Prefs.flag(this, "foreign") && isForeign(number, region)) ||
                         (Prefs.flag(this, "business") && isBusiness(number, region))
@@ -42,7 +50,7 @@ class ScreeningService : CallScreeningService() {
             return
         }
 
-        if (Prefs.lookupEnabled(this) || matched) {
+        if (Settings.canDrawOverlays(this) && (Prefs.lookupEnabled(this) || matched)) {
             showOverlay(number, name)
             if (name == null && key != null) {
                 Reports.lookup(key) {

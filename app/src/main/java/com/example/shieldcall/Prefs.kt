@@ -18,6 +18,8 @@ object Prefs {
         private set
     var unsaved by mutableStateOf(false)
         private set
+    var spamScam by mutableStateOf(false)
+        private set
     var action by mutableStateOf("popup")
         private set
     var fingerprint by mutableStateOf(false)
@@ -30,6 +32,8 @@ object Prefs {
         private set
     var anonymousReviews by mutableStateOf(false)
         private set
+    var fullScreen by mutableStateOf(false)
+        private set
 
     private fun prefs(c: Context) = c.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -40,13 +44,20 @@ object Prefs {
         foreign = flag(c, "foreign")
         unknown = flag(c, "unknown")
         unsaved = flag(c, "unsaved")
+        spamScam = flag(c, "spamScam")
         action = actionOf(c)
         fingerprint = prefs(c).getBoolean("fingerprint", false)
         pinLock = prefs(c).getBoolean("pinLock", false)
         pinCode = prefs(c).getString("pinCode", "1234") ?: "1234"
         anonymousReviews = prefs(c).getBoolean("anonymousReviews", false)
+        fullScreen = prefs(c).getBoolean("fullScreen", false)
         val recentsStr = prefs(c).getString("recentLookups", "") ?: ""
         recentLookups = if (recentsStr.isBlank()) emptyList() else recentsStr.split(",")
+    }
+
+    fun setFullScreen(c: Context, v: Boolean) {
+        fullScreen = v
+        prefs(c).edit().putBoolean("fullScreen", v).apply()
     }
 
     fun setAnonymousReviews(c: Context, v: Boolean) {
@@ -85,6 +96,7 @@ object Prefs {
             "foreign" -> foreign = v
             "unknown" -> unknown = v
             "unsaved" -> unsaved = v
+            "spamScam" -> spamScam = v
         }
         prefs(c).edit().putBoolean(key, v).apply()
     }

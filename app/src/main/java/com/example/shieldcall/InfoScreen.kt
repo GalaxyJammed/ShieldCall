@@ -1,9 +1,15 @@
 package com.example.shieldcall
 
+import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -14,6 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.PhoneInTalk
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,8 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
+import android.util.Log
+import androidx.compose.ui.platform.LocalContext
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -41,28 +50,38 @@ private fun colorOf(type: String) = when (type) {
 fun InfoScreen(number: String, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
     val tail = number
-    var info by remember { mutableStateOf<Info?>(null) }
-    var failed by remember { mutableStateOf(value = false) }
-    var reload by remember { mutableIntStateOf(0) }
-    var reviews by remember { mutableStateOf<List<Review>?>(null) }
-    var text by remember { mutableStateOf("") }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var signed by remember { mutableStateOf(Reports.signedIn()) }
+    var info by remember { mutableStateOf<Info?>(null) }
+    var reviews by remember { mutableStateOf<List<Review>?>(null) }
     var listed by remember { mutableStateOf<String?>(null) }
+    var failed by remember { mutableStateOf(false) }
+    var reload by remember { mutableIntStateOf(0) }
+    var text by remember { mutableStateOf("") }
 
-    LaunchedEffect(number) {
-        Reports.recordProfileView(context)
-        listed = SpamDb.get(context).dao().find(number)?.uppercase()
+    var contactName by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(tail) {
+        val e = SpamDb.get(context).dao().entry(tail)
+        listed = e?.takeIf { it.source == "list" || it.source == "skip" }?.type?.uppercase()
             ?: if (Skip.isSpam("+$number") == true) "SPAM" else null
     }
-    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(number, reload) {
+    LaunchedEffect(tail) {
+        withContext(Dispatchers.IO) {
+            contactName = Reports.loadContactName(context, tail)
+        }
+    }
+
+    LaunchedEffect(tail, reload, signed) {
+        if (!signed) return@LaunchedEffect
         try {
-            info = Reports.load(number)
+            info = Reports.load(tail)
+            if (reviews != null) reviews = Reports.loadReviews(tail)
             failed = false
-            if (reviews != null) reviews = Reports.loadReviews(number)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("Shield", e.toString())
             failed = true
         }
     }
@@ -72,10 +91,88 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
             try {
                 block()
                 reload++
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("Shield", e.toString())
                 failed = true
             }
         }
+    }
+
+    val displayNum = if (number.startsWith("+")) number else "+$number"
+    val cleanNum = remember(displayNum) { displayNum.filter { it.isDigit() || it == '+' } }
+    var showCallDialog by remember { mutableStateOf(false) }
+
+    val callPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            try {
+                val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$cleanNum"))
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Log.e("Shield", "Failed to call", e)
+                Toast.makeText(context, "Cannot place call", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Call permission required to place calls", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    if (showCallDialog) {
+        AlertDialog(
+            onDismissRequest = { showCallDialog = false },
+            title = { Text("ShieldCall Dialer") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = contactName?.takeIf { it.isNotBlank() } ?: "Unknown Number",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = displayNum,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "Press call to place a call using ShieldCall.",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showCallDialog = false
+                        if (context.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+                            try {
+                                val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$cleanNum"))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Log.e("Shield", "Failed to call", e)
+                                Toast.makeText(context, "Cannot place call", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            callPermissionLauncher.launch(Manifest.permission.CALL_PHONE)
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Green)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PhoneInTalk,
+                        contentDescription = "Call",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Call")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCallDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     val i = info
@@ -102,72 +199,61 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                 }
             }
         }
+        item { Spacer(Modifier.height(4.dp)) }
         item {
-            ShieldCard(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    val contactName by produceState<String?>(null, number) {
-                        value = withContext(Dispatchers.IO) {
-                            Reports.loadContactName(context, number)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = contactName?.takeIf { it.isNotBlank() } ?: "Unknown Number",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = displayNum,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.combinedClickable(
+                        onClick = {
+                            showCallDialog = true
+                        },
+                        onLongClick = {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            clipboard.setPrimaryClip(ClipData.newPlainText("Phone Number", displayNum))
+                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                         }
-                    }
-                    Text(
-                        contactName ?: "Unknown Contact",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
                     )
-                    Spacer(Modifier.height(4.dp))
-                    val clipboardManager = LocalClipboardManager.current
-                    Text(
-                        "+$number",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.combinedClickable(
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:+$number"))
-                                context.startActivity(intent)
-                            },
-                            onLongClick = {
-                                clipboardManager.setText(AnnotatedString("+$number"))
-                                Toast.makeText(context, "Number copied", Toast.LENGTH_SHORT).show()
-                            }
-                        )
-                    )
-                }
+                )
             }
         }
         if (failed) item {
             Text("Couldn't reach the server. Check your connection.", color = MaterialTheme.colorScheme.error)
         }
-        if (i == null) {
+        listed?.let { l ->
+            item {
+                ShieldCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Reported on public lists", style = MaterialTheme.typography.labelLarge)
+                        Text(l, style = MaterialTheme.typography.titleLarge, color = colorOf(l.lowercase()))
+                    }
+                }
+            }
+        }
+        if (!signed) {
+            item {
+                ShieldCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Sign in with Google to see community ratings, vote and leave reviews.")
+                        Button(
+                            onClick = { scope.launch { if (Auth.signIn(context)) signed = true } },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Sign in with Google") }
+                    }
+                }
+            }
+        } else if (i == null) {
             if (!failed) item { CircularProgressIndicator() }
         } else {
-            listed?.let { l ->
-                item {
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text("Reported on public lists", style = MaterialTheme.typography.labelLarge)
-                            Text(l, style = MaterialTheme.typography.titleLarge, color = colorOf(l.lowercase()))
-                        }
-                    }
-                }
-            }
             item { TrustCard(i) }
-            item {
-                if (!signed) Button(
-                    onClick = { scope.launch { if (Auth.signIn(context)) { signed = true; reload++ } } },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Sign in with Google to vote or review") }
-                else VoteRow(i.myVote) { type ->
-                    act {
-                        Reports.report(tail, type).await()
-                        withContext(Dispatchers.IO) {
-                            SpamDb.get(context).dao().addIdentification(
-                                IdentificationEntry(number = tail, type = type, time = System.currentTimeMillis())
-                            )
-                        }
-                    }
-                }
-            }
+            item { VoteRow(i.myVote) { type -> act { Reports.report(context, tail, type) } } }
             item {
                 val v = i.myVote
                 if (v == null) Text("Vote above to leave a review.")
@@ -193,6 +279,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                             try {
                                 reviews = Reports.loadReviews(tail)
                             } catch (e: Exception) {
+                                Log.e("Shield", e.toString())
                                 failed = true
                             }
                         }
@@ -257,9 +344,12 @@ private fun VoteRow(mine: String?, onVote: (String) -> Unit) {
                 Button(
                     onClick = { onVote(t) },
                     enabled = mine == null,
-                    colors = ButtonDefaults.buttonColors(containerColor = colorOf(t)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colorOf(t),
+                        disabledContainerColor = colorOf(t).copy(alpha = if (mine == t) 1f else 0.3f)
+                    ),
                     modifier = Modifier.weight(1f)
-                ) { Text(t.replaceFirstChar { it.uppercase() }) }
+                ) { Text(if (mine == t) "✓ ${t.replaceFirstChar { it.uppercase() }}" else t.replaceFirstChar { it.uppercase() }) }
             }
         }
     }

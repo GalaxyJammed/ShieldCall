@@ -36,22 +36,28 @@ fun ShieldTheme(dark: Boolean, content: @Composable () -> Unit) {
     }
     val view = LocalView.current
     SideEffect {
-        val window = (view.context as Activity).window
-        WindowCompat.getInsetsController(window, view).apply {
-            isAppearanceLightStatusBars = !dark
-            isAppearanceLightNavigationBars = !dark
+        val window = (view.context as? Activity)?.window
+        if (window != null) {
+            WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
         }
     }
     MaterialTheme(colorScheme = scheme, content = content)
 }
 
 @Composable
-fun ShieldCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+fun ShieldCard(
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    content: @Composable ColumnScope.() -> Unit
+) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, if (Prefs.dark) Color.White.copy(alpha = 0.35f) else Color.Black.copy(alpha = 0.35f)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
         content = content
     )
 }

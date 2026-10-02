@@ -42,7 +42,6 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Reports.signIn()
         Prefs.load(this)
         Seed.run(applicationContext)
         refresh()

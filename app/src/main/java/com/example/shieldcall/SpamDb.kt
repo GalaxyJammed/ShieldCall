@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "numbers")
-data class SpamNumber(@PrimaryKey val number: String, val type: String)
+data class SpamNumber(@PrimaryKey val number: String, val type: String, val source: String = "list")
 
 @Entity(tableName = "blocked")
 data class BlockedNumber(@PrimaryKey val number: String, val name: String)
@@ -34,7 +34,7 @@ data class CallEntry(
 data class IdentificationEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val number: String,
-    val type: String, // "spam", "scam", "safe"
+    val type: String,
     val time: Long
 )
 
@@ -48,6 +48,9 @@ data class HangupEntry(
 
 @Dao
 interface SpamDao {
+    @Query("SELECT * FROM numbers WHERE number = :tail LIMIT 1")
+    fun entry(tail: String): SpamNumber?
+
     @Query("SELECT type FROM numbers WHERE number = :tail LIMIT 1")
     fun find(tail: String): String?
 
@@ -108,6 +111,9 @@ interface SpamDao {
     @Query("DELETE FROM identifications")
     fun clearIdentifications()
 
+    @Query("DELETE FROM identifications WHERE number = :number")
+    fun deleteIdentifications(number: String)
+
     @Query("DELETE FROM hangups")
     fun clearHangups()
 }
@@ -126,6 +132,23 @@ private val MIGRATION_2_3 = object : Migration(2, 3) {
 
 private val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE numbers ADD COLUMN source TEXT NOT NULL DEFAULT 'list'")
+    }
+}
+
+private fun hasColumn(db: SupportSQLiteDatabase, table: String, column: String): Boolean {
+    db.query("PRAGMA table_info(`$table`)").use { c ->
+        val i = c.getColumnIndex("name")
+        while (c.moveToNext()) if (c.getString(i) == column) return true
+    }
+    return false
+}
+
+private val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        if (!hasColumn(db, "numbers", "source")) {
+            db.execSQL("ALTER TABLE numbers ADD COLUMN source TEXT NOT NULL DEFAULT 'list'")
+        }
         db.execSQL("CREATE TABLE IF NOT EXISTS `identifications` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `number` TEXT NOT NULL, `type` TEXT NOT NULL, `time` INTEGER NOT NULL)")
         db.execSQL("CREATE TABLE IF NOT EXISTS `hangups` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `number` TEXT NOT NULL, `time` INTEGER NOT NULL, `secondsSaved` INTEGER NOT NULL)")
     }
@@ -133,7 +156,7 @@ private val MIGRATION_3_4 = object : Migration(3, 4) {
 
 @Database(
     entities = [SpamNumber::class, BlockedNumber::class, CallEntry::class, IdentificationEntry::class, HangupEntry::class],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class SpamDb : RoomDatabase() {
@@ -144,7 +167,7 @@ abstract class SpamDb : RoomDatabase() {
 
         fun get(context: Context): SpamDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, SpamDb::class.java, "spam.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .allowMainThreadQueries()
                 .build()
                 .also { instance = it }
