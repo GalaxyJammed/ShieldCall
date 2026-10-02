@@ -15,7 +15,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "numbers")
-data class SpamNumber(@PrimaryKey val number: String, val type: String, val source: String = "list")
+data class SpamNumber(@PrimaryKey val number: String, val type: String, val source: String = "mine")
 
 @Entity(tableName = "blocked")
 data class BlockedNumber(
@@ -123,6 +123,9 @@ interface SpamDao {
 
     @Query("DELETE FROM hangups")
     fun clearHangups()
+
+    @Query("DELETE FROM numbers WHERE source IN ('list', 'skip')")
+    fun clearPublic()
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {

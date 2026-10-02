@@ -55,18 +55,12 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     var signed by remember { mutableStateOf(Reports.signedIn()) }
     var info by remember { mutableStateOf<Info?>(null) }
     var reviews by remember { mutableStateOf<List<Review>?>(null) }
-    var listed by remember { mutableStateOf<String?>(null) }
     var failed by remember { mutableStateOf(false) }
     var reload by remember { mutableIntStateOf(0) }
     var text by remember { mutableStateOf("") }
 
     var contactName by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(tail) {
-        val e = SpamDb.get(context).dao().entry(tail)
-        listed = e?.takeIf { it.source == "list" || it.source == "skip" }?.type?.uppercase()
-            ?: if (Skip.isSpam("+$number") == true) "SPAM" else null
-    }
 
     LaunchedEffect(tail) {
         withContext(Dispatchers.IO) {
@@ -226,16 +220,6 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
         }
         if (failed) item {
             Text("Couldn't reach the server. Check your connection.", color = MaterialTheme.colorScheme.error)
-        }
-        listed?.let { l ->
-            item {
-                ShieldCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("Reported on public lists", style = MaterialTheme.typography.labelLarge)
-                        Text(l, style = MaterialTheme.typography.titleLarge, color = colorOf(l.lowercase()))
-                    }
-                }
-            }
         }
         if (!signed) {
             item {

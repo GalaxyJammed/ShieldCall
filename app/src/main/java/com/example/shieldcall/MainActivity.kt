@@ -43,7 +43,6 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.load(this)
-        Seed.run(applicationContext)
         refresh()
         setContent {
             ShieldTheme(Prefs.dark) {

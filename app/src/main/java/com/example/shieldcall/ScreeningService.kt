@@ -77,9 +77,6 @@ class ScreeningService : CallScreeningService() {
                 Reports.lookup(key) {
                     dao.insert(SpamNumber(key, it))
                 }
-                Skip.check("+$key") {
-                    dao.insert(SpamNumber(key, "spam"))
-                }
             }
         }
         logCall(dao, key, number, name, "Incoming")
