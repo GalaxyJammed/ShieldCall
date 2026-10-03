@@ -42,6 +42,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.lazy.rememberLazyListState
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -196,9 +197,11 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     }
 
     val i = info
+    val listState = rememberLazyListState()
     Box(Modifier.fillMaxSize()) {
         LazyColumn(
-            Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            Modifier.fillMaxSize().scrollbar(listState).padding(horizontal = 24.dp),
+            state = listState,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {

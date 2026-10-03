@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 object Prefs {
     var dark by mutableStateOf(false)
@@ -34,6 +35,8 @@ object Prefs {
         private set
     var fullScreen by mutableStateOf(false)
         private set
+    var crashReports by mutableStateOf(true)
+        private set
 
     private fun prefs(c: Context) = c.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -53,6 +56,7 @@ object Prefs {
         fullScreen = prefs(c).getBoolean("fullScreen", false)
         val recentsStr = prefs(c).getString("recentLookups", "") ?: ""
         recentLookups = if (recentsStr.isBlank()) emptyList() else recentsStr.split(",")
+        crashReports = prefs(c).getBoolean("crashReports", true)
     }
 
     fun setFullScreen(c: Context, v: Boolean) {
@@ -121,5 +125,11 @@ object Prefs {
         }
         recentLookups = current
         prefs(c).edit().putString("recentLookups", current.joinToString(",")).apply()
+    }
+
+    fun setCrashReports(c: Context, v: Boolean) {
+        crashReports = v
+        prefs(c).edit().putBoolean("crashReports", v).apply()
+        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(v)
     }
 }

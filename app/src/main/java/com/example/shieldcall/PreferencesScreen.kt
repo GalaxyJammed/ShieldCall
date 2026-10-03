@@ -52,7 +52,8 @@ fun PreferencesScreen() {
         return
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
+    val scroll = rememberScrollState()
+    Column(Modifier.fillMaxSize().scrollbar(scroll).verticalScroll(scroll).padding(horizontal = 24.dp)) {
         ScreenTitle("Security")
         Spacer(Modifier.height(16.dp))
         Section("Block calls from")
@@ -121,7 +122,7 @@ fun PreferencesScreen() {
         ShieldCard(Modifier.fillMaxWidth()) {
             BlockLink("Blocked calls", null) { page = "log" }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(96.dp))
     }
 
     if (showAddDialog) {

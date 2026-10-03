@@ -50,10 +50,17 @@ import java.net.URL
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material.icons.filled.BugReport
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     BackHandler(onBack = onBack)
+    var admin by rememberSaveable { mutableStateOf(false) }
+    if (admin) {
+        AdminScreen { admin = false }
+        return
+    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -69,10 +76,15 @@ fun SettingsScreen(onBack: () -> Unit) {
     val userPhotoUrl = remember(googleSignedIn) { Reports.userPhotoUrl() }
     val userDisplayName = remember(googleSignedIn) { Reports.userDisplayName() }
 
+    var isAdmin by remember { mutableStateOf(false) }
+    LaunchedEffect(googleSignedIn) { isAdmin = googleSignedIn && Reports.isAdmin() }
+
+    val scroll = rememberScrollState()
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .scrollbar(scroll)
+            .verticalScroll(scroll)
             .padding(horizontal = 24.dp)
     ) {
         ShieldCard(Modifier.fillMaxWidth()) {
@@ -397,6 +409,26 @@ fun SettingsScreen(onBack: () -> Unit) {
         EmergencyCheck()
 
         Spacer(Modifier.height(24.dp))
+        Section("Backup")
+        BackupSettings()
+
+        Spacer(Modifier.height(24.dp))
+        Section("Privacy")
+        ShieldCard(Modifier.fillMaxWidth()) {
+            SettingRow(Icons.Default.BugReport, "Send crash reports", "Anonymous crash data helps fix bugs. No contacts or numbers are included.", Prefs.crashReports) {
+                Prefs.setCrashReports(context, it)
+            }
+        }
+
+        if (isAdmin) {
+            Spacer(Modifier.height(24.dp))
+            Section("Moderation")
+            ShieldCard(Modifier.fillMaxWidth()) {
+                BlockLink("Reported reviews", null) { admin = true }
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
         Section("About")
         ShieldCard(Modifier.fillMaxWidth()) {
             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -458,7 +490,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             googleSignedIn = Reports.signedIn()
                             Toast.makeText(
                                 context,
-                                if (ok) "Account and all associated data deleted." else "Account deleted.",
+                                if (ok) "Account and all associated data deleted." else "Your data was deleted. To remove the account itself, sign in again and retry.",
                                 Toast.LENGTH_LONG
                             ).show()
                         }

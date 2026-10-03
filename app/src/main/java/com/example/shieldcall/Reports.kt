@@ -36,8 +36,47 @@ data class UserAnalytics(
     val viewCountries: Map<String, Long> = emptyMap(),
     val searchCountries: Map<String, Long> = emptyMap()
 )
+data class Flagged(val tail: String, val rid: String, val type: String, val text: String, val author: String, val flags: Long)
 
 object Reports {
+
+    suspend fun isAdmin(): Boolean = try {
+        db.collection("admins").document(uid()).get().await().exists()
+    } catch (e: Exception) {
+        false
+    }
+
+    suspend fun loadFlagged(): List<Flagged> =
+        db.collectionGroup("reviews")
+            .whereGreaterThan("flags", 0)
+            .orderBy("flags", Query.Direction.DESCENDING)
+            .limit(30)
+            .get().await().documents
+            .map {
+                Flagged(
+                    it.reference.parent.parent?.id.orEmpty(),
+                    it.id,
+                    it.getString("type").orEmpty(),
+                    it.getString("text").orEmpty(),
+                    it.getString("authorName") ?: "Anonymous User",
+                    it.getLong("flags") ?: 0
+                )
+            }
+
+    suspend fun adminDelete(tail: String, rid: String) {
+        db.collection("reports").document(tail).collection("reviews").document(rid).delete().await()
+    }
+
+    suspend fun adminDismiss(tail: String, rid: String) {
+        db.collection("reports").document(tail).collection("reviews").document(rid).update("flags", 0).await()
+    }
+
+    suspend fun adminBan(tail: String, rid: String) {
+        val batch = db.batch()
+        batch.set(db.collection("bans").document(rid), mapOf("t" to System.currentTimeMillis()))
+        batch.delete(db.collection("reports").document(tail).collection("reviews").document(rid))
+        batch.commit().await()
+    }
     private const val THRESHOLD = 3
     private val db get() = FirebaseFirestore.getInstance()
     private val auth get() = FirebaseAuth.getInstance()
@@ -477,73 +516,56 @@ object Reports {
 
     suspend fun deleteAccountAndData(context: Context): Boolean {
         val user = auth.currentUser ?: return false
-        val uid = user.uid
+        val userRef = db.collection("users").document(user.uid)
 
-        return try {
-            val dao = SpamDb.get(context).dao()
-
+        val likes = try {
+            (userRef.get().await().get("likedReviews") as? List<*>).orEmpty().map { it.toString() }
+        } catch (e: Exception) {
+            emptyList()
+        }
+        for (k in likes) {
             try {
-                val userVotesSnapshot = db.collection("users").document(uid).collection("votes").get().await()
-                for (voteDoc in userVotesSnapshot.documents) {
-                    val number = voteDoc.getString("number") ?: voteDoc.id
-                    val type = voteDoc.getString("type")
-                    val reportRef = db.collection("reports").document(number)
+                like(k.substringBefore("_"), k.substringAfter("_"), false)
+            } catch (e: Exception) {
+            }
+        }
 
-                    try {
-                        reportRef.collection("votes").document(uid).delete().await()
-                    } catch (_: Exception) {}
-
-                    try {
-                        reportRef.collection("reviews").document(uid).delete().await()
-                    } catch (_: Exception) {}
-
-                    if (!type.isNullOrBlank()) {
-                        try {
-                            reportRef.set(
-                                mapOf(type to FieldValue.increment(-1)),
-                                SetOptions.merge()
-                            ).await()
-                        } catch (_: Exception) {}
-                    }
-
-                    try {
-                        voteDoc.reference.delete().await()
-                    } catch (_: Exception) {}
-                }
+        val votes = try {
+            userRef.collection("votes").get().await().documents
+        } catch (e: Exception) {
+            emptyList()
+        }
+        for (v in votes) {
+            val tail = v.getString("number") ?: v.id
+            val type = v.getString("type") ?: continue
+            try {
+                removeVote(context, tail, type)
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
 
-            try {
-            } catch (_: Exception) {}
-
-            try {
-                db.collection("users").document(uid).delete().await()
-            } catch (_: Exception) {}
-
-            try {
-                dao.clear()
-                dao.clearIdentifications()
-                dao.clearHangups()
-                context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-                    .edit()
-                    .remove("recentLookups")
-                    .apply()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-
-            try {
-                user.delete().await()
-            } catch (_: Exception) {
-                auth.signOut()
-            }
-
-            auth.signInAnonymously().await()
-
-            true
+        try {
+            userRef.delete().await()
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+
+        try {
+            val dao = SpamDb.get(context).dao()
+            dao.clear()
+            dao.clearIdentifications()
+            dao.clearHangups()
+            context.getSharedPreferences("settings", Context.MODE_PRIVATE).edit().remove("recentLookups").apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return try {
+            user.delete().await()
+            true
+        } catch (e: Exception) {
+            auth.signOut()
             false
         }
     }

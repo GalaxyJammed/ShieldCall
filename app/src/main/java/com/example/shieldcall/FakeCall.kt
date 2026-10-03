@@ -163,7 +163,7 @@ fun FakeCallScreen(name: String, number: String, onFinish: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     ToggleButton("Mute", if (muted) Icons.Default.MicOff else Icons.Default.Mic, muted) { muted = !muted }
                     ToggleButton("Keypad", Icons.Default.Dialpad, keypad) { keypad = !keypad }
-                    ToggleButton("Speaker", Icons.Default.VolumeUp, speaker) { speaker = !speaker }
+                    ToggleButton("Speaker", Icons.Filled.VolumeUp, speaker) { speaker = !speaker }
                     ToggleButton("Hold", if (hold) Icons.Default.PlayArrow else Icons.Default.Pause, hold) { hold = !hold }
                 }
                 LabeledButton("End", Icons.Default.CallEnd, FakeRed) { phase = 2 }

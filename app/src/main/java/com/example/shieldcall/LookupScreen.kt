@@ -37,6 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import android.content.ClipboardManager
 import android.widget.Toast
+import androidx.compose.foundation.lazy.rememberLazyListState
 
 data class Country(val region: String, val name: String, val code: Int) {
     val flag: String
@@ -78,7 +79,8 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
 
     val recents = Prefs.recentLookups
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
+    val scroll = rememberScrollState()
+    Column(Modifier.fillMaxSize().scrollbar(scroll).verticalScroll(scroll).padding(horizontal = 24.dp)) {
         UpdateCard()
         if (Update.latest != null) Spacer(Modifier.height(16.dp))
         ShieldCard(Modifier.fillMaxWidth()) {
@@ -239,6 +241,7 @@ private fun Avatar(name: String, photo: String?) {
 
 @Composable
 internal fun CountryPicker(onPick: (Country) -> Unit, onDismiss: () -> Unit) {
+    val listState = rememberLazyListState()
     var query by remember { mutableStateOf("") }
     val list = remember(query) {
         countries.filter { it.name.contains(query, true) || it.code.toString().startsWith(query.removePrefix("+")) }
@@ -253,7 +256,7 @@ internal fun CountryPicker(onPick: (Country) -> Unit, onDismiss: () -> Unit) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
-                LazyColumn {
+                LazyColumn(Modifier.scrollbar(listState), state = listState) {
                     items(list) { c ->
                         Row(Modifier.fillMaxWidth().clickable { onPick(c) }.padding(vertical = 12.dp)) {
                             Text("${c.flag}  ${c.name}", Modifier.weight(1f))

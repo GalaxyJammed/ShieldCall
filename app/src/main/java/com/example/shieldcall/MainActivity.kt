@@ -31,6 +31,7 @@ import android.app.NotificationManager
 import android.telecom.PhoneAccount
 import android.telecom.TelecomManager
 import android.widget.Toast
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 data class Perms(val phone: Boolean = false, val overlay: Boolean = false, val role: Boolean = false) {
     val all get() = phone && overlay && role
@@ -51,6 +52,8 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.load(this)
+        FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(Prefs.crashReports)
+        Favorites.load(this)
         refresh()
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED

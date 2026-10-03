@@ -136,6 +136,9 @@ interface SpamDao {
 
     @Query("DELETE FROM calls WHERE status = 'Blocked'")
     fun clearBlockedCalls()
+
+    @Query("SELECT * FROM blocked")
+    fun allBlocked(): List<BlockedNumber>
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {

@@ -98,10 +98,12 @@ fun StatsScreen() {
         context.startActivity(Intent.createChooser(intent, "Share your stats"))
     }
 
+    val scroll = rememberScrollState()
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .scrollbar(scroll)
+            .verticalScroll(scroll)
             .padding(horizontal = 24.dp)
     ) {
         ShieldCard(Modifier.fillMaxWidth()) {
@@ -388,7 +390,7 @@ fun StatsScreen() {
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(96.dp))
     }
 
     if (selectedDetailType != null) {

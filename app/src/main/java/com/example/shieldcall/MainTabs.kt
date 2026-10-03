@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -42,26 +41,31 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun MainTabs(tab: Int, onTab: (Int) -> Unit, onNumber: (String) -> Unit, onSettings: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.weight(1f)) {
-            AnimatedContent(
-                targetState = tab,
-                transitionSpec = {
-                    val dir = if (targetState > initialState) 1 else -1
-                    slideInHorizontally(tween(300)) { it * dir } togetherWith
-                            slideOutHorizontally(tween(300)) { -it * dir }
-                },
-                label = "tabs"
-            ) { t ->
-                when (t) {
-                    0 -> LookupWithDialer(onNumber, onSettings)
-                    1 -> ContactsScreen(onNumber)
-                    2 -> StatsScreen()
-                    else -> PreferencesScreen()
-                }
+    Box(Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = tab,
+            transitionSpec = {
+                val dir = if (targetState > initialState) 1 else -1
+                slideInHorizontally(tween(300)) { it * dir } togetherWith
+                        slideOutHorizontally(tween(300)) { -it * dir }
+            },
+            modifier = Modifier.fillMaxSize(),
+            label = "tabs"
+        ) { t ->
+            when (t) {
+                0 -> LookupWithDialer(onNumber, onSettings)
+                1 -> ContactsScreen(onNumber)
+                2 -> StatsScreen()
+                else -> PreferencesScreen()
             }
         }
-        BottomBar(tab, onTab)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
+            BottomBar(tab, onTab)
+        }
     }
 }
 

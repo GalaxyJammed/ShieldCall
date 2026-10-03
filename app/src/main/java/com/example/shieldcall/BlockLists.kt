@@ -50,7 +50,8 @@ fun BlockListPage(kind: String, dao: SpamDao, onBack: () -> Unit) {
         else -> "Blocked Calls"
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
+    val scroll = rememberScrollState()
+    Column(Modifier.fillMaxSize().scrollbar(scroll).verticalScroll(scroll).padding(horizontal = 24.dp)) {
         ShieldCard(Modifier.fillMaxWidth()) {
             Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
                 IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
