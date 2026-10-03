@@ -59,7 +59,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.8.4")
     implementation(platform("com.google.firebase:firebase-bom:34.0.0"))
     implementation("com.google.firebase:firebase-firestore")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.googlecode.libphonenumber:libphonenumber:8.13.50")
     implementation("com.googlecode.libphonenumber:geocoder:3.40")
