@@ -30,7 +30,9 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 ### 📞 Instant Caller Info
 - A card appears as soon as a call comes in, showing the contact name, contact number, safety ranking and a way to immediately mark as **SAFE/SPAM/SCAM** yourself
 - Works through Android's call screening, so the info shows up while the phone is still ringing
-- Can be switched off at any time with the **Automatic call lookup** setting
+- Can be switched off at any time with the **Automatic call lookup** setting (disabled when having full-screen calls enabled)
+- **Decline & Message** or send **Voicemails** through the dialer incase you wish to respond without calling
+- Notifications on missed calls that show the "Safety Ranking" of a missed call along with a "Call Back" button
 
 ### 🔎 Number Lookup
 - Look up any phone number with a searchable **country code picker**
@@ -42,10 +44,11 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - One vote per Google account per number, so a single person can't flood a number with reviews
 - Reviews are only loaded when you tap **Show reviews**, which keeps the app fast and light
 - Vote anonymously or using your Google Account
+- Like other reviews and filter by **Newest/Most Liked** reviews for ease or report ones you think were done in bad faith
 
 ### 👥 Contacts and Recent Calls
 - Browse your contacts with their photos and tap anyone to see their safety screen
-- Switch to **Recent Calls** with the filter button to see the last 10 calls ShieldCall screened
+- Switch to **Recent Calls** with the filter button to see the last 100 calls ShieldCall screened along with information
 - Block or unblock any contact or number with one tap
 
 ### 🛡️ Smart Blocking Preferences
@@ -54,6 +57,7 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
   - **Hang up immediately**
   - **Block the number** and add it to your blocked list
 - Saved contacts are never caught by the category rules
+- Unblock any contact whenever you want in the click of a button
 
 ### 📊 Stats
 - Shows how many calls you identified as Spam,Scam,Safe
@@ -79,6 +83,7 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - When you vote or review, the number, your vote and your review are stored online so other users can see them. You must sign in with Google for this, and your account ID is stored as an anonymous identifier, never shown to anyone
 - ShieldCall has no ads and does not sell your data
 - You can delete all data at any given moment when you sign in with your Google Account
+- Emergency calls (112,911 etc) work and ignore every redundant feature in the Dialer (can be tested in Settings)
 
 ## 🛠️ Setup
 
@@ -121,3 +126,4 @@ ShieldCall requires Android 10 (API level 29) or higher.
 ## 📄 License
 
 The source code is MIT licensed. The bundled number list and third-party services (Firebase) are subject to their own terms.
+See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for how data is handled and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the libraries used.
