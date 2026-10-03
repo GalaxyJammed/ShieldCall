@@ -150,7 +150,7 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val contactInfo by produceState(ContactInfo(null, null), number) {
+                        val contactInfo by produceState(ContactInfo(null, null, null), number) {
                             value = withContext(Dispatchers.IO) {
                                 Reports.loadContactInfo(context, number)
                             }
@@ -167,13 +167,17 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
                                 Spacer(Modifier.height(2.dp))
                                 Text("+$number", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                             }
+                            if (!contactInfo.location.isNullOrBlank()) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(contactInfo.location!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 }
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(96.dp))
     }
 
     if (picking) CountryPicker({ country = it; picking = false }) { picking = false }

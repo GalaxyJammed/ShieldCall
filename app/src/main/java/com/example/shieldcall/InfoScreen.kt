@@ -59,12 +59,12 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     var reload by remember { mutableIntStateOf(0) }
     var text by remember { mutableStateOf("") }
 
-    var contactName by remember { mutableStateOf<String?>(null) }
+    var contactInfo by remember { mutableStateOf<ContactInfo?>(null) }
 
 
     LaunchedEffect(tail) {
         withContext(Dispatchers.IO) {
-            contactName = Reports.loadContactName(context, tail)
+            contactInfo = Reports.loadContactInfo(context, tail)
         }
     }
 
@@ -119,7 +119,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = contactName?.takeIf { it.isNotBlank() } ?: "Unknown Number",
+                        text = contactInfo?.name?.takeIf { it.isNotBlank() } ?: "Unknown Number",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -197,7 +197,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = contactName?.takeIf { it.isNotBlank() } ?: "Unknown Number",
+                    text = contactInfo?.name?.takeIf { it.isNotBlank() } ?: "Unknown Number",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -216,6 +216,13 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                         }
                     )
                 )
+                if (!contactInfo?.location.isNullOrBlank()) {
+                    Text(
+                        text = contactInfo!!.location!!,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
         if (failed) item {
@@ -250,7 +257,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth()
                     )
                     Button(
-                        onClick = { act { Reports.review(tail, v, text.trim()); text = "" } },
+                        onClick = { act { Reports.review(context, tail, v, text.trim()); text = "" } },
                         enabled = text.isNotBlank()
                     ) { Text("Post review") }
                 }

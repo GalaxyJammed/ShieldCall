@@ -54,7 +54,7 @@ fun MainTabs(tab: Int, onTab: (Int) -> Unit, onNumber: (String) -> Unit, onSetti
                 label = "tabs"
             ) { t ->
                 when (t) {
-                    0 -> LookupScreen(onNumber, onSettings)
+                    0 -> LookupWithDialer(onNumber, onSettings)
                     1 -> ContactsScreen(onNumber)
                     2 -> StatsScreen()
                     else -> PreferencesScreen()

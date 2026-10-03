@@ -36,12 +36,10 @@ fun ShieldTheme(dark: Boolean, content: @Composable () -> Unit) {
     }
     val view = LocalView.current
     SideEffect {
-        val window = (view.context as? Activity)?.window
-        if (window != null) {
-            WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !dark
-                isAppearanceLightNavigationBars = !dark
-            }
+        val window = (view.context as? Activity)?.window ?: return@SideEffect
+        WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = !dark
+            isAppearanceLightNavigationBars = !dark
         }
     }
     MaterialTheme(colorScheme = scheme, content = content)

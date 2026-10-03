@@ -14,6 +14,7 @@ import android.provider.ContactsContract
 import android.telephony.TelephonyManager
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
+import com.google.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder
 import java.util.Locale
 
 data class Review(
@@ -23,7 +24,7 @@ data class Review(
     val authorName: String = "Anonymous User"
 )
 data class Info(val spam: Long, val scam: Long, val safe: Long, val myVote: String?, val reviews: List<Review>)
-data class ContactInfo(val name: String?, val photo: String?)
+data class ContactInfo(val name: String?, val photo: String?, val location: String? = null)
 
 data class UserAnalytics(
     val profileViews: Long = 0,
@@ -54,6 +55,7 @@ object Reports {
 
 
     private fun uid(): String = auth.currentUser?.uid ?: throw IllegalStateException("Not signed in")
+    fun versionCode(c: Context): Long = c.packageManager.getPackageInfo(c.packageName, 0).longVersionCode
 
     suspend fun report(context: Context, tail: String, type: String) {
         val uid = uid()
@@ -61,7 +63,7 @@ object Reports {
         val doc = db.collection("reports").document(tail)
         val userDocRef = db.collection("users").document(uid)
         val batch = db.batch()
-        batch.set(doc.collection("votes").document(uid), mapOf("type" to type, "time" to currentTime))
+        batch.set(doc.collection("votes").document(uid), mapOf("type" to type, "time" to currentTime, "appVersion" to versionCode(context)))
         batch.set(userDocRef.collection("votes").document(tail), mapOf("number" to tail, "type" to type, "time" to currentTime))
         batch.set(
             doc,
@@ -90,13 +92,14 @@ object Reports {
         }
     }
 
-    suspend fun review(tail: String, type: String, text: String, anonymous: Boolean = Prefs.anonymousReviews) {
+    suspend fun review(context: Context, tail: String, type: String, text: String, anonymous: Boolean = Prefs.anonymousReviews) {
         val name = if (anonymous) "Anonymous User" else (auth.currentUser?.displayName ?: userEmail()?.substringBefore("@") ?: "Verified User")
         db.collection("reports").document(tail).collection("reviews").document(uid())
             .set(mapOf(
                 "type" to type,
                 "text" to text,
                 "authorName" to name,
+                "appVersion" to versionCode(context),
                 "time" to FieldValue.serverTimestamp()
             ))
             .await()
@@ -104,48 +107,34 @@ object Reports {
 
     suspend fun load(tail: String): Info {
         if (tail.isBlank()) return Info(0, 0, 0, null, emptyList())
-        return try {
-            val uid = uid()
-            val doc = db.collection("reports").document(tail)
-            val main = doc.get().await()
-            val mine = if (main.exists()) {
-                try {
-                    doc.collection("votes").document(uid).get().await().getString("type")
-                } catch (_: Exception) {
-                    null
-                }
-            } else null
-            Info(
-                if (main.exists()) main.getLong("spam") ?: 0 else 0,
-                if (main.exists()) main.getLong("scam") ?: 0 else 0,
-                if (main.exists()) main.getLong("safe") ?: 0 else 0,
-                mine,
-                emptyList()
-            )
-        } catch (e: Exception) {
-            Info(0, 0, 0, null, emptyList())
-        }
+        val uid = uid()
+        val doc = db.collection("reports").document(tail)
+        val main = doc.get().await()
+        val mine = if (main.exists()) doc.collection("votes").document(uid).get().await().getString("type") else null
+        return Info(
+            main.getLong("spam") ?: 0,
+            main.getLong("scam") ?: 0,
+            main.getLong("safe") ?: 0,
+            mine,
+            emptyList()
+        )
     }
 
     suspend fun loadReviews(tail: String): List<Review> {
         if (tail.isBlank()) return emptyList()
-        return try {
-            val uid = uid()
-            db.collection("reports").document(tail).collection("reviews")
-                .orderBy("time", Query.Direction.DESCENDING)
-                .limit(10)
-                .get().await().documents
-                .map {
-                    Review(
-                        it.getString("type").orEmpty(),
-                        it.getString("text").orEmpty(),
-                        it.id == uid,
-                        it.getString("authorName") ?: "Anonymous User"
-                    )
-                }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        val uid = uid()
+        return db.collection("reports").document(tail).collection("reviews")
+            .orderBy("time", Query.Direction.DESCENDING)
+            .limit(10)
+            .get().await().documents
+            .map {
+                Review(
+                    it.getString("type").orEmpty(),
+                    it.getString("text").orEmpty(),
+                    it.id == uid,
+                    it.getString("authorName") ?: "Anonymous User"
+                )
+            }
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -203,10 +192,38 @@ object Reports {
         }
     }
 
+    fun loadLocation(context: Context, number: String): String? {
+        if (number.isBlank()) return null
+        val util = PhoneNumberUtil.getInstance()
+        val geocoder = PhoneNumberOfflineGeocoder.getInstance()
+        val defaultRegion = region(context)
+        return try {
+            val formattedNum = if (number.startsWith("+")) number else "+$number"
+            val parsed = util.parse(formattedNum, defaultRegion)
+            val geocoderDesc = geocoder.getDescriptionForNumber(parsed, Locale.getDefault())
+            val regionCode = util.getRegionCodeForNumber(parsed) ?: defaultRegion
+            val countryName = try {
+                Locale.Builder().setRegion(regionCode).build().displayCountry.ifBlank { null }
+            } catch (_: Exception) { null }
+
+            if (geocoderDesc.isNotBlank() && countryName != null && !geocoderDesc.equals(countryName, ignoreCase = true)) {
+                "$geocoderDesc, $countryName"
+            } else if (geocoderDesc.isNotBlank()) {
+                geocoderDesc
+            } else {
+                countryName
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     fun loadContactInfo(context: Context, number: String): ContactInfo {
         val reg = region(context)
         val k = key(number, reg) ?: number
         val queries = listOf(number, "+$number", k)
+        var name: String? = null
+        var photo: String? = null
         for (q in queries) {
             if (q.isBlank()) continue
             try {
@@ -222,13 +239,16 @@ object Reports {
                     null,
                 )?.use { c ->
                     if (c.moveToFirst()) {
-                        return ContactInfo(c.getString(0), c.getString(1))
+                        name = c.getString(0)
+                        photo = c.getString(1)
                     }
                 }
+                if (name != null) break
             } catch (_: Exception) {
             }
         }
-        return ContactInfo(null, null)
+        val loc = loadLocation(context, number)
+        return ContactInfo(name, photo, loc)
     }
 
     fun loadContactName(context: Context, number: String): String? {

@@ -108,6 +108,7 @@ class ScreeningService : CallScreeningService() {
     }
 
     private fun showOverlay(number: String, contactName: String?) {
+        if (getSystemService(TelecomManager::class.java).defaultDialerPackage == packageName) return
         startService(
             Intent(this, OverlayService::class.java)
                 .putExtra("number", number)

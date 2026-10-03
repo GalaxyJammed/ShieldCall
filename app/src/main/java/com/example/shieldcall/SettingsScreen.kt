@@ -47,6 +47,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.URL
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Info
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -94,7 +97,11 @@ fun SettingsScreen(onBack: () -> Unit) {
 
         val rm = context.getSystemService(RoleManager::class.java)
         val tm = context.getSystemService(TelecomManager::class.java)
-        val isDefaultDialer = (rm?.isRoleHeld(RoleManager.ROLE_DIALER) == true) || (tm?.defaultDialerPackage == context.packageName)
+        fun checkDialer() = (rm?.isRoleHeld(RoleManager.ROLE_DIALER) == true) || (tm?.defaultDialerPackage == context.packageName)
+        var isDefaultDialer by remember { mutableStateOf(checkDialer()) }
+        val roleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            isDefaultDialer = checkDialer()
+        }
 
         if (!isDefaultDialer) {
             ShieldCard(
@@ -142,19 +149,11 @@ fun SettingsScreen(onBack: () -> Unit) {
 
                     Button(
                         onClick = {
-                            val activity = context as? Activity
                             var launched = false
                             if (rm != null && rm.isRoleAvailable(RoleManager.ROLE_DIALER)) {
                                 try {
-                                    val intent = rm.createRequestRoleIntent(RoleManager.ROLE_DIALER)
-                                    if (activity != null) {
-                                        activity.startActivityForResult(intent, 1001)
-                                        launched = true
-                                    } else {
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                        launched = true
-                                    }
+                                    roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_DIALER))
+                                    launched = true
                                 } catch (_: Exception) {}
                             }
                             if (!launched) {
@@ -338,7 +337,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     Prefs.setDark(context, it)
                 }
                 HorizontalDivider()
-                SettingRow(Icons.Default.PhoneInTalk, "Full-screen call popup", "Show full-screen incoming call screen instead of center box", Prefs.fullScreen) {
+                SettingRow(Icons.Default.PhoneInTalk, "Full-screen incoming call", "Off shows a small card on top of your screen. A locked phone always shows full screen.", Prefs.fullScreen) {
                     Prefs.setFullScreen(context, it)
                 }
             }
@@ -384,6 +383,21 @@ fun SettingsScreen(onBack: () -> Unit) {
                             Text("Set or change your app PIN code", style = MaterialTheme.typography.bodySmall)
                         }
                     }
+                }
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+        Section("Dial")
+        DialSettings()
+
+        Spacer(Modifier.height(24.dp))
+        Section("About")
+        ShieldCard(Modifier.fillMaxWidth()) {
+            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.padding(end = 16.dp))
+                Column {
+                    Text("About ShieldCall", style = MaterialTheme.typography.titleMedium)
+                    Text("Version ${Update.current(context)}", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

@@ -48,6 +48,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.telecom.Call
+import android.telecom.VideoProfile
 
 
 class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
@@ -56,6 +58,7 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
     private val stateController = SavedStateRegistryController.create(this)
     private val handler = Handler(Looper.getMainLooper())
     private var view: ComposeView? = null
+    private var sound: CallSound? = null
 
     override val lifecycle: Lifecycle get() = registry
     override val savedStateRegistry: SavedStateRegistry get() = stateController.savedStateRegistry
@@ -73,6 +76,10 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
         }
         Prefs.load(this)
         val number = intent?.getStringExtra("number").orEmpty()
+        val fake = intent?.getBooleanExtra("fake", false) == true
+        sound?.stop()
+        sound = if (fake) CallSound(this).also { it.start() } else null
+        val incoming = intent?.getBooleanExtra("incoming", false) == true
         val contactName = intent?.getStringExtra("contactName")
         removeView()
         val isFull = Prefs.fullScreen
@@ -86,41 +93,29 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
                             number = number,
                             contactName = contactName,
                             onDismiss = { stopSelf() },
-                            onReport = { type ->
-                                val tail = Reports.key(number, Reports.region(this@OverlayService)) ?: number
-                                val dao = SpamDb.get(this@OverlayService).dao()
-                                dao.insert(SpamNumber(tail, type))
-                                dao.deleteIdentifications(tail)
-                                dao.addIdentification(IdentificationEntry(number = tail, type = type, time = System.currentTimeMillis()))
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    try {
-                                        Reports.report(this@OverlayService, tail, type)
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
-                                }
-                                stopSelf()
-                            }
+                            onReport = { submit(number, it) }
                         )
                     } else {
+                        var declined by remember { mutableStateOf(false) }
+                        if (incoming) {
+                            val ringing = CallManager.ringing() != null
+                            LaunchedEffect(ringing, declined) { if (!ringing && !declined) stopSelf() }
+                        }
                         OverlayCard(
                             number = number,
                             contactName = contactName,
                             onDismiss = { stopSelf() },
-                            onReport = { type ->
-                                val tail = Reports.key(number, Reports.region(this@OverlayService)) ?: number
-                                val dao = SpamDb.get(this@OverlayService).dao()
-                                dao.insert(SpamNumber(tail, type))
-                                dao.deleteIdentifications(tail)
-                                dao.addIdentification(IdentificationEntry(number = tail, type = type, time = System.currentTimeMillis()))
-                                CoroutineScope(Dispatchers.IO).launch {
-                                    try {
-                                        Reports.report(this@OverlayService, tail, type)
-                                    } catch (e: Exception) {
-                                        e.printStackTrace()
-                                    }
+                            onReport = { if (fake) stopSelf() else submit(number, it) },
+                            onAccept = {
+                                if (incoming) {
+                                    CallManager.ringing()?.answer(VideoProfile.STATE_AUDIO_ONLY)
+                                    startActivity(Intent(this@OverlayService, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                                 }
                                 stopSelf()
+                            },
+                            onDeclineClick = {
+                                declined = true
+                                if (incoming) CallManager.ringing()?.reject(false, null)
                             }
                         )
                     }
@@ -160,7 +155,24 @@ class OverlayService : Service(), LifecycleOwner, SavedStateRegistryOwner {
         view = null
     }
 
+    private fun submit(number: String, type: String) {
+        val tail = Reports.key(number, Reports.region(this)) ?: number
+        val dao = SpamDb.get(this).dao()
+        dao.insert(SpamNumber(tail, type))
+        dao.deleteIdentifications(tail)
+        dao.addIdentification(IdentificationEntry(number = tail, type = type, time = System.currentTimeMillis()))
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                Reports.report(this@OverlayService, tail, type)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        stopSelf()
+    }
+
     override fun onDestroy() {
+        sound?.stop()
         removeView()
         registry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
         super.onDestroy()
@@ -283,19 +295,24 @@ fun OverlayCard(
     number: String,
     contactName: String?,
     onDismiss: () -> Unit,
-    onReport: (String) -> Unit
+    onReport: (String) -> Unit,
+    onAccept: () -> Unit = onDismiss,
+    onDeclineClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var resolvedName by remember { mutableStateOf(contactName) }
+    var location by remember { mutableStateOf<String?>(null) }
     var photoUri by remember { mutableStateOf<String?>(null) }
     var showDeclineReason by remember { mutableStateOf(false) }
 
     LaunchedEffect(number, contactName) {
         if (number.isNotBlank()) {
             withContext(Dispatchers.IO) {
+                val info = Reports.loadContactInfo(context, number)
                 if (contactName.isNullOrBlank()) {
-                    resolvedName = Reports.loadContactName(context, number)
+                    resolvedName = info.name
                 }
+                location = info.location
                 photoUri = contactPhotoUri(context, number)
             }
         }
@@ -319,8 +336,7 @@ fun OverlayCard(
                     val region = Reports.region(context)
                     val tail = Reports.key(number, region) ?: number
                     val info = Reports.load(tail)
-                    val localVote = SpamDb.get(context).dao().find(tail) ?: SpamDb.get(context).dao().find(number)
-                    existingVote = info.myVote ?: localVote
+                    existingVote = info.myVote ?: SpamDb.get(context).dao().entry(tail)?.takeIf { it.source == "mine" }?.type
 
                     val total = info.spam + info.scam + info.safe
                     if (total > 0) {
@@ -372,6 +388,14 @@ fun OverlayCard(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        if (!location.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = location!!,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
                 IconButton(
@@ -401,7 +425,7 @@ fun OverlayCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Button(
-                        onClick = onDismiss,
+                        onClick = onAccept,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF2E7D32),
                             contentColor = Color.White
@@ -411,7 +435,10 @@ fun OverlayCard(
                         Text("Accept")
                     }
                     Button(
-                        onClick = { showDeclineReason = true },
+                        onClick = {
+                            onDeclineClick()
+                            if (existingVote != null || !Reports.signedIn()) onDismiss() else showDeclineReason = true
+                        },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFC62828),
                             contentColor = Color.White
@@ -446,15 +473,18 @@ fun FullScreenCallCard(
 ) {
     val context = LocalContext.current
     var resolvedName by remember { mutableStateOf(contactName) }
+    var location by remember { mutableStateOf<String?>(null) }
     var photoUri by remember { mutableStateOf<String?>(null) }
     var showDeclineReason by remember { mutableStateOf(false) }
 
     LaunchedEffect(number, contactName) {
         if (number.isNotBlank()) {
             withContext(Dispatchers.IO) {
+                val info = Reports.loadContactInfo(context, number)
                 if (contactName.isNullOrBlank()) {
-                    resolvedName = Reports.loadContactName(context, number)
+                    resolvedName = info.name
                 }
+                location = info.location
                 photoUri = contactPhotoUri(context, number)
             }
         }
@@ -478,8 +508,7 @@ fun FullScreenCallCard(
                     val region = Reports.region(context)
                     val tail = Reports.key(number, region) ?: number
                     val info = Reports.load(tail)
-                    val localVote = SpamDb.get(context).dao().find(tail) ?: SpamDb.get(context).dao().find(number)
-                    existingVote = info.myVote ?: localVote
+                    existingVote = info.myVote ?: SpamDb.get(context).dao().entry(tail)?.takeIf { it.source == "mine" }?.type
 
                     val total = info.spam + info.scam + info.safe
                     if (total > 0) {
@@ -530,6 +559,14 @@ fun FullScreenCallCard(
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    if (!location.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = location!!,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
 
                 Surface(
@@ -554,7 +591,7 @@ fun FullScreenCallCard(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         IconButton(
-                            onClick = { showDeclineReason = true },
+                            onClick = { if (existingVote != null || !Reports.signedIn()) onDismiss() else showDeclineReason = true },
                             modifier = Modifier
                                 .size(72.dp)
                                 .background(Color(0xFFC62828), CircleShape)

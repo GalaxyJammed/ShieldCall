@@ -25,6 +25,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.fragment.app.FragmentActivity
+import androidx.compose.runtime.LaunchedEffect
 
 data class Perms(val phone: Boolean = false, val overlay: Boolean = false, val role: Boolean = false) {
     val all get() = phone && overlay && role
@@ -53,7 +54,10 @@ class MainActivity : FragmentActivity() {
                         if (locked) {
                             LockScreen { isUnlocked = true }
                         } else {
-                            Root(perms, ::requestPhone, ::requestOverlay, ::requestRole)
+                            LaunchedEffect(Unit) { Update.check(this@MainActivity) }
+                            val newVersion = Update.latest
+                            if (newVersion != null) UpdateScreen(newVersion, Update.url)
+                            else Root(perms, ::requestPhone, ::requestOverlay, ::requestRole)
                         }
                     }
                 }
