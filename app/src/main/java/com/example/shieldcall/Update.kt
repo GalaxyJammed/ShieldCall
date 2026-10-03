@@ -24,7 +24,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object Update {
-    private const val OWNER = "GalaxyJammed"
+    private const val OWNER = "galaxyjammed"
     private const val REPO = "ShieldCall"
 
     var latest by mutableStateOf<String?>(null)
