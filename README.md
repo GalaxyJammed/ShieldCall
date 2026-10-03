@@ -126,3 +126,4 @@ ShieldCall requires Android 10 (API level 29) or higher.
 ## 📄 License
 
 The source code is MIT licensed. The bundled number list and third-party services (Firebase) are subject to their own terms.
+See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for how data is handled and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the libraries used.
