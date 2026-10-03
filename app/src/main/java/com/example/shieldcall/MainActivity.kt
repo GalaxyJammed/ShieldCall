@@ -26,6 +26,11 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.LaunchedEffect
+import android.os.Build
+import android.app.NotificationManager
+import android.telecom.PhoneAccount
+import android.telecom.TelecomManager
+import android.widget.Toast
 
 data class Perms(val phone: Boolean = false, val overlay: Boolean = false, val role: Boolean = false) {
     val all get() = phone && overlay && role
@@ -41,14 +46,35 @@ class MainActivity : FragmentActivity() {
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { refresh() }
 
+    private val notifLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Prefs.load(this)
         refresh()
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        if (savedInstanceState == null) handle(intent)
         setContent {
             ShieldTheme(Prefs.dark) {
                 Surface(Modifier.fillMaxSize()) {
                     Box(Modifier.safeDrawingPadding()) {
+                        val shared = when (intent?.action) {
+                            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
+                            Intent.ACTION_PROCESS_TEXT -> intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+                            else -> null
+                        }
+                        if (shared != null) {
+                            intent?.action = Intent.ACTION_MAIN
+                            val found = Reports.firstNumber(shared, Reports.region(this@MainActivity))
+                            if (found != null) {
+                                Prefs.addRecentLookup(this@MainActivity, found)
+                                LookupRequest.number = found
+                            } else {
+                                Toast.makeText(this@MainActivity, "No phone number found", Toast.LENGTH_SHORT).show()
+                            }
+                        }
                         var isUnlocked by rememberSaveable { mutableStateOf(false) }
                         val locked = (Prefs.fingerprint || Prefs.pinLock) && !isUnlocked
                         if (locked) {
@@ -92,6 +118,28 @@ class MainActivity : FragmentActivity() {
             roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_CALL_SCREENING))
         }
     }
+
+    private fun handle(intent: Intent?) {
+        if (intent?.getBooleanExtra("voicemail", false) == true) {
+            intent.removeExtra("voicemail")
+            getSystemService(NotificationManager::class.java).cancel(3)
+            if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+                getSystemService(TelecomManager::class.java)
+                    .placeCall(Uri.fromParts(PhoneAccount.SCHEME_VOICEMAIL, "", null), null)
+            }
+            return
+        }
+        val number = intent?.getStringExtra("dial") ?: return
+        DialRequest.number = number
+        intent.removeExtra("dial")
+        intent.getStringExtra("tag")?.let { getSystemService(NotificationManager::class.java).cancel(it, 2) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handle(intent)
+    }
 }
 
 @Composable
@@ -100,6 +148,22 @@ fun Root(perms: Perms, onPhone: () -> Unit, onOverlay: () -> Unit, onRole: () ->
     var lastNumber by rememberSaveable { mutableStateOf("") }
     var settings by rememberSaveable { mutableStateOf(false) }
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    val request = DialRequest.number
+    LaunchedEffect(request) {
+        if (request != null) {
+            tab = 0
+            number = null
+            settings = false
+        }
+    }
+    val lookup = LookupRequest.number
+    LaunchedEffect(lookup) {
+        if (lookup != null) {
+            settings = false
+            number = lookup
+            LookupRequest.number = null
+        }
+    }
     number?.let { lastNumber = it }
     val screen = when {
         !perms.all -> 0

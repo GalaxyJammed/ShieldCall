@@ -24,6 +24,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true">
+            android:launchMode="singleTop"
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
@@ -46,7 +47,23 @@
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:scheme="tel"/>
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
+            </intent-filter>
         </activity>
+
+        <receiver android:name=".VoicemailReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.telephony.action.SHOW_VOICEMAIL_NOTIFICATION"/>
+            </intent-filter>
+        </receiver>
 
         <activity
             android:name=".InCallActivity"

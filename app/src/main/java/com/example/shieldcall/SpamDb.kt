@@ -31,7 +31,8 @@ data class CallEntry(
     val raw: String,
     val name: String,
     val status: String,
-    val time: Long
+    val time: Long,
+    val duration: Int = 0
 )
 
 @Entity(tableName = "identifications")
@@ -88,7 +89,7 @@ interface SpamDao {
     @Query("DELETE FROM calls WHERE id NOT IN (SELECT id FROM calls ORDER BY time DESC LIMIT 100)")
     fun trimCalls()
 
-    @Query("SELECT * FROM calls ORDER BY time DESC LIMIT 10")
+    @Query("SELECT * FROM calls ORDER BY time DESC LIMIT 100")
     fun recentFlow(): Flow<List<CallEntry>>
 
     @Insert
@@ -126,6 +127,15 @@ interface SpamDao {
 
     @Query("DELETE FROM numbers WHERE source IN ('list', 'skip')")
     fun clearPublic()
+
+    @Query("DELETE FROM numbers WHERE number = :tail AND source = 'mine'")
+    fun removeMine(tail: String)
+
+    @Query("SELECT * FROM calls WHERE status = 'Blocked' ORDER BY time DESC LIMIT 100")
+    fun blockedCallsFlow(): Flow<List<CallEntry>>
+
+    @Query("DELETE FROM calls WHERE status = 'Blocked'")
+    fun clearBlockedCalls()
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -172,9 +182,17 @@ private val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+private val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        if (!hasColumn(db, "calls", "duration")) {
+            db.execSQL("ALTER TABLE calls ADD COLUMN duration INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+}
+
 @Database(
     entities = [SpamNumber::class, BlockedNumber::class, CallEntry::class, IdentificationEntry::class, HangupEntry::class],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 abstract class SpamDb : RoomDatabase() {
@@ -185,7 +203,7 @@ abstract class SpamDb : RoomDatabase() {
 
         fun get(context: Context): SpamDb = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(context.applicationContext, SpamDb::class.java, "spam.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .allowMainThreadQueries()
                 .build()
                 .also { instance = it }

@@ -79,7 +79,9 @@ class ScreeningService : CallScreeningService() {
                 }
             }
         }
-        logCall(dao, key, number, name, "Incoming")
+        if (getSystemService(TelecomManager::class.java).defaultDialerPackage != packageName) {
+            logCall(dao, key, number, name, "Incoming")
+        }
         respondToCall(details, CallResponse.Builder().build())
     }
 

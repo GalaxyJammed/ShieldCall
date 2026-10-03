@@ -38,6 +38,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.telecom.PhoneAccount
+import android.telephony.TelephonyManager
+import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 private val CallGreen = Color(0xFF2E7D32)
 private val CallAmber = Color(0xFFF9A825)
@@ -78,9 +83,18 @@ private fun InCallScreen(onFinish: () -> Unit) {
     var wasIncoming by remember { mutableStateOf(false) }
     var prompt by remember { mutableStateOf<String?>(null) }
     var keypad by remember { mutableStateOf(false) }
+    var showReplies by remember { mutableStateOf(false) }
 
     val liveNumber = call?.details?.handle?.schemeSpecificPart.orEmpty()
     val number = liveNumber.ifEmpty { lastNumber }
+    val isVoicemail = call?.details?.handle?.scheme == PhoneAccount.SCHEME_VOICEMAIL
+    val isEmergency = remember(number) {
+        number.isNotBlank() && try {
+            context.getSystemService(TelephonyManager::class.java).isEmergencyNumber(number)
+        } catch (e: Exception) {
+            false
+        }
+    }
     val state = remember(tick, call) { call?.state ?: Call.STATE_DISCONNECTED }
 
     LaunchedEffect(liveNumber) { if (liveNumber.isNotEmpty()) lastNumber = liveNumber }
@@ -111,7 +125,7 @@ private fun InCallScreen(onFinish: () -> Unit) {
         }
     }
     val canPrompt = key != null && Reports.signedIn() && info != null &&
-            info?.myVote == null && localVote == null && contact.name.isNullOrBlank()
+            info?.myVote == null && localVote == null && contact.name.isNullOrBlank() && !isEmergency
 
     LaunchedEffect(call == null) {
         if (call == null && prompt == null) {
@@ -178,34 +192,53 @@ private fun InCallScreen(onFinish: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Spacer(Modifier.height(16.dp))
-            Text(stateText, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                stateText,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             CallAvatar(photoUri = contact.photo, size = 120.dp)
             Text(
-                contact.name?.takeIf { it.isNotBlank() } ?: "Unknown number",
+                if (isVoicemail) "Voicemail" else if (isEmergency) "Emergency call" else contact.name?.takeIf { it.isNotBlank() }
+                    ?: "Unknown number",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold
             )
-            Text(
-                if (key != null) "+$key" else number.ifBlank { "Hidden number" },
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            country?.let { Text("${it.flag} ${it.name}", style = MaterialTheme.typography.bodyLarge) }
+            if (!isVoicemail) {
+                Text(
+                    if (key != null) "+$key" else number.ifBlank { "Hidden number" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            country?.let {
+                Text(
+                    "${it.flag} ${it.name}",
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
             if (!contact.location.isNullOrBlank() && contact.location != country?.name) {
-                Text(contact.location!!, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    contact.location!!,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Spacer(Modifier.height(8.dp))
-            Surface(
-                color = rankColor.copy(alpha = 0.2f).compositeOver(MaterialTheme.colorScheme.surface),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text(
-                    rankText,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = rankColor,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+            if (!isEmergency && !isVoicemail) {
+                Surface(
+                    color = rankColor.copy(alpha = 0.2f)
+                        .compositeOver(MaterialTheme.colorScheme.surface),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text(
+                        rankText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = rankColor,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
             }
         }
 
@@ -236,12 +269,30 @@ private fun InCallScreen(onFinish: () -> Unit) {
         }
 
         if (state == Call.STATE_RINGING) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            val canReply = call.details.can(Call.Details.CAPABILITY_RESPOND_VIA_TEXT) && number.isNotBlank() && !isEmergency
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
                 LabeledButton("Decline", Icons.Default.CallEnd, CallRed) {
                     if (canPrompt) prompt = "declined"
                     call.reject(false, null)
                 }
+                if (canReply) LabeledButton("Message", Icons.AutoMirrored.Filled.Message, MaterialTheme.colorScheme.primary) { showReplies = true }
                 LabeledButton("Accept", Icons.Default.Call, CallGreen) { call.answer(VideoProfile.STATE_AUDIO_ONLY) }
+            }
+            if (showReplies) {
+                val replies = remember(call) {
+                    call.cannedTextResponses.orEmpty().ifEmpty {
+                        listOf("Can't talk now. What's up?", "I'll call you right back.", "I'll call you later.", "Can't talk now. Call me later?")
+                    }
+                }
+                ReplySheet(
+                    replies = replies,
+                    onPick = { text ->
+                        showReplies = false
+                        if (canPrompt) prompt = "declined"
+                        call.reject(true, text)
+                    },
+                    onDismiss = { showReplies = false }
+                )
             }
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -350,5 +401,31 @@ fun ToggleButton(label: String, icon: ImageVector, on: Boolean, onClick: () -> U
         ) { Icon(icon, contentDescription = label) }
         Spacer(Modifier.height(4.dp))
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun ReplySheet(replies: List<String>, onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    var custom by remember { mutableStateOf("") }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        ShieldCard(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Decline with a message", style = MaterialTheme.typography.titleLarge)
+                replies.forEach { r ->
+                    OutlinedButton(onClick = { onPick(r) }, modifier = Modifier.fillMaxWidth()) { Text(r) }
+                }
+                OutlinedTextField(
+                    value = custom,
+                    onValueChange = { custom = it.take(160) },
+                    label = { Text("Custom message") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(enabled = custom.isNotBlank(), onClick = { onPick(custom.trim()) }) { Text("Send") }
+                }
+            }
+        }
     }
 }

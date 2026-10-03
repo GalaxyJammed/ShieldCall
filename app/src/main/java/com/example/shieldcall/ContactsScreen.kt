@@ -30,8 +30,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 
-data class ContactItem(val name: String, val key: String, val raw: String, val photo: String?, val extra: String? = null)
+data class ContactItem(val name: String, val key: String, val raw: String, val photo: String?, val extra: String? = null, val incoming: Boolean? = null)
 
 private fun loadContacts(context: Context): List<ContactItem> {
     val region = Reports.region(context)
@@ -74,7 +76,13 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
                 it.number,
                 it.raw,
                 null,
-                "${it.status} · ${DateUtils.getRelativeTimeSpanString(it.time)}"
+                buildString {
+                    append(it.status)
+                    if (it.duration > 0) append(" · %d:%02d".format(it.duration / 60, it.duration % 60))
+                    append(" · ")
+                    append(DateUtils.getRelativeTimeSpanString(it.time))
+                },
+                it.status != "Outgoing"
             )
         }
     }
@@ -133,7 +141,18 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
                             Text(c.name, style = MaterialTheme.typography.titleMedium)
-                            Text(c.extra ?: c.raw, style = MaterialTheme.typography.bodySmall)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                c.incoming?.let {
+                                    Icon(
+                                        if (it) Icons.AutoMirrored.Filled.CallReceived else Icons.AutoMirrored.Filled.CallMade,
+                                        contentDescription = if (it) "Incoming" else "Outgoing",
+                                        tint = if (it) Color(0xFF2E7D32) else Color(0xFFC62828),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                }
+                                Text(c.extra ?: c.raw, style = MaterialTheme.typography.bodySmall)
+                            }
                         }
                         IconButton(onClick = {
                             if (isBlocked) dao.unblock(c.key) else dao.block(BlockedNumber(c.key, c.name))

@@ -343,12 +343,14 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        if (!isDefaultDialer) {
+            Spacer(Modifier.height(24.dp))
 
-        Section("Automation")
-        ShieldCard(Modifier.fillMaxWidth()) {
-            SettingRow(Icons.Default.PhoneInTalk, "Automatic call lookup", "Show the info card when a call comes in", Prefs.lookup) {
-                Prefs.setLookup(context, it)
+            Section("Automation")
+            ShieldCard(Modifier.fillMaxWidth()) {
+                SettingRow(Icons.Default.PhoneInTalk, "Automatic call lookup", "Show the info card when a call comes in", Prefs.lookup) {
+                    Prefs.setLookup(context, it)
+                }
             }
         }
 
@@ -389,6 +391,10 @@ fun SettingsScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Section("Dial")
         DialSettings()
+
+        Spacer(Modifier.height(24.dp))
+        Section("Emergency")
+        EmergencyCheck()
 
         Spacer(Modifier.height(24.dp))
         Section("About")

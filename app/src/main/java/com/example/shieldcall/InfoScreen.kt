@@ -35,6 +35,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.util.Log
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.outlined.ThumbUp
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import kotlinx.coroutines.delay
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -60,6 +67,15 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     var text by remember { mutableStateOf("") }
 
     var contactInfo by remember { mutableStateOf<ContactInfo?>(null) }
+    var sort by remember { mutableStateOf("new") }
+
+    var showNotice by remember { mutableStateOf(false) }
+    LaunchedEffect(showNotice) {
+        if (showNotice) {
+            delay(2000)
+            showNotice = false
+        }
+    }
 
 
     LaunchedEffect(tail) {
@@ -72,11 +88,21 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
         if (!signed) return@LaunchedEffect
         try {
             info = Reports.load(tail)
-            if (reviews != null) reviews = Reports.loadReviews(tail)
+            if (reviews != null) reviews = Reports.loadReviews(tail, sort)
             failed = false
         } catch (e: Exception) {
             Log.e("Shield", e.toString())
             failed = true
+        }
+    }
+
+    LaunchedEffect(sort) {
+        if (reviews != null) {
+            try {
+                reviews = Reports.loadReviews(tail, sort)
+            } catch (e: Exception) {
+                Log.e("Shield", e.toString())
+            }
         }
     }
 
@@ -170,119 +196,190 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     }
 
     val i = info
-    LazyColumn(
-        Modifier.fillMaxSize().padding(horizontal = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        item {
-            ShieldCard(Modifier.fillMaxWidth()) {
-                Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
-                    IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                    Text(
-                        "Number Details",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-                }
-            }
-        }
-        item { Spacer(Modifier.height(4.dp)) }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = contactInfo?.name?.takeIf { it.isNotBlank() } ?: "Unknown Number",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = displayNum,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.combinedClickable(
-                        onClick = {
-                            showCallDialog = true
-                        },
-                        onLongClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            clipboard.setPrimaryClip(ClipData.newPlainText("Phone Number", displayNum))
-                            Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                )
-                if (!contactInfo?.location.isNullOrBlank()) {
-                    Text(
-                        text = contactInfo!!.location!!,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-        if (failed) item {
-            Text("Couldn't reach the server. Check your connection.", color = MaterialTheme.colorScheme.error)
-        }
-        if (!signed) {
+    Box(Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             item {
                 ShieldCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Sign in with Google to see community ratings, vote and leave reviews.")
-                        Button(
-                            onClick = { scope.launch { if (Auth.signIn(context)) signed = true } },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Sign in with Google") }
+                    Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
+                        IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Text(
+                            "Number Details",
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
                     }
                 }
             }
-        } else if (i == null) {
-            if (!failed) item { CircularProgressIndicator() }
-        } else {
-            item { TrustCard(i) }
-            item { VoteRow(i.myVote) { type -> act { Reports.report(context, tail, type) } } }
+            item { Spacer(Modifier.height(4.dp)) }
             item {
-                val v = i.myVote
-                if (v == null) Text("Vote above to leave a review.")
-                else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = text,
-                        onValueChange = { text = it.take(300) },
-                        label = { Text("Your experience") },
-                        minLines = 3,
-                        modifier = Modifier.fillMaxWidth()
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = contactInfo?.name?.takeIf { it.isNotBlank() } ?: "Unknown Number",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold
                     )
-                    Button(
-                        onClick = { act { Reports.review(context, tail, v, text.trim()); text = "" } },
-                        enabled = text.isNotBlank()
-                    ) { Text("Post review") }
+                    Text(
+                        text = displayNum,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.combinedClickable(
+                            onClick = { showCallDialog = true },
+                            onLongClick = {
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("Phone Number", displayNum))
+                                Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    )
+                    if (!contactInfo?.location.isNullOrBlank()) {
+                        Text(
+                            text = contactInfo!!.location!!,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
-            val r = reviews
-            if (r == null) item {
-                OutlinedButton(
-                    onClick = {
-                        scope.launch {
-                            try {
-                                reviews = Reports.loadReviews(tail)
-                            } catch (e: Exception) {
-                                Log.e("Shield", e.toString())
-                                failed = true
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Show reviews") }
-            } else {
-                item { Text("Reviews", style = MaterialTheme.typography.titleMedium) }
-                if (r.isEmpty()) item { Text("No reviews yet.") }
-                items(r) { ReviewCard(it) }
+            if (failed) item {
+                Text("Couldn't reach the server. Check your connection.", color = MaterialTheme.colorScheme.error)
             }
-            item { Spacer(Modifier.height(24.dp)) }
+            if (!signed) {
+                item {
+                    ShieldCard(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Sign in with Google to see community ratings, vote and leave reviews.")
+                            Button(
+                                onClick = { scope.launch { if (Auth.signIn(context)) signed = true } },
+                                modifier = Modifier.fillMaxWidth()
+                            ) { Text("Sign in with Google") }
+                        }
+                    }
+                }
+            } else if (i == null) {
+                if (!failed) item { CircularProgressIndicator() }
+            } else {
+                item { TrustCard(i) }
+                item {
+                    VoteRow(
+                        mine = i.myVote,
+                        onVote = { type -> act { Reports.report(context, tail, type, i.myVote) } },
+                        onRemove = { act { Reports.removeVote(context, tail, i.myVote!!); reviews = null } }
+                    )
+                }
+                item {
+                    val v = i.myVote
+                    if (v == null) Text("Vote above to leave a review.")
+                    else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedTextField(
+                            value = text,
+                            onValueChange = { text = it.take(300) },
+                            label = { Text("Your experience") },
+                            minLines = 3,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Button(
+                            onClick = { act { Reports.review(context, tail, v, text.trim()); text = "" } },
+                            enabled = text.isNotBlank()
+                        ) { Text("Post review") }
+                    }
+                }
+                val r = reviews
+                if (r == null) item {
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    reviews = Reports.loadReviews(tail, sort)
+                                } catch (e: Exception) {
+                                    Log.e("Shield", e.toString())
+                                    failed = true
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Show reviews") }
+                } else {
+                    item {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Reviews", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                            FilterChip(selected = sort == "new", onClick = { sort = "new" }, label = { Text("Newest") })
+                            Spacer(Modifier.width(8.dp))
+                            FilterChip(selected = sort == "liked", onClick = { sort = "liked" }, label = { Text("Most liked") })
+                        }
+                    }
+                    if (r.isEmpty()) item { Text("No reviews yet.") }
+                    items(r, key = { it.id }) { rv ->
+                        ReviewCard(
+                            rv,
+                            onLike = {
+                                if (rv.mine) {
+                                    showNotice = true
+                                } else {
+                                    val on = !rv.liked
+                                    reviews = r.map { if (it.id == rv.id) it.copy(liked = on, likes = it.likes + if (on) 1 else -1) else it }
+                                    scope.launch {
+                                        try {
+                                            Reports.like(tail, rv.id, on)
+                                        } catch (e: Exception) {
+                                            Log.e("Shield", e.toString())
+                                            reviews = Reports.loadReviews(tail, sort)
+                                        }
+                                    }
+                                }
+                            },
+                            onFlag = {
+                                reviews = r.filter { it.id != rv.id }
+                                scope.launch {
+                                    try {
+                                        Reports.flagReview(tail, rv.id)
+                                    } catch (e: Exception) {
+                                        Log.e("Shield", e.toString())
+                                    }
+                                }
+                            },
+                            onDelete = {
+                                reviews = r.filter { it.id != rv.id }
+                                scope.launch {
+                                    try {
+                                        Reports.deleteReview(tail)
+                                    } catch (e: Exception) {
+                                        Log.e("Shield", e.toString())
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+                item { Spacer(Modifier.height(24.dp)) }
+            }
+        }
+        AnimatedVisibility(
+            visible = showNotice,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 32.dp)
+        ) {
+            Surface(
+                color = MaterialTheme.colorScheme.inverseSurface,
+                shape = MaterialTheme.shapes.extraLarge
+            ) {
+                Text(
+                    "You can't like your own reviews",
+                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+                )
+            }
         }
     }
 }
@@ -327,27 +424,38 @@ private fun Bar(label: String, n: Long, total: Long, color: Color) {
 }
 
 @Composable
-private fun VoteRow(mine: String?, onVote: (String) -> Unit) {
+private fun VoteRow(mine: String?, onVote: (String) -> Unit, onRemove: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(if (mine != null) "You voted: ${mine.uppercase()}" else "How was your experience with this number?")
+        Text(if (mine != null) "Your vote: ${mine.uppercase()}" else "How was your experience with this number?")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("safe", "spam", "scam").forEach { t ->
                 Button(
                     onClick = { onVote(t) },
-                    enabled = mine == null,
+                    enabled = mine != t,
+                    contentPadding = PaddingValues(horizontal = 4.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = colorOf(t),
-                        disabledContainerColor = colorOf(t).copy(alpha = if (mine == t) 1f else 0.3f)
+                        disabledContainerColor = colorOf(t),
+                        disabledContentColor = Color.White
                     ),
                     modifier = Modifier.weight(1f)
-                ) { Text(if (mine == t) "✓ ${t.replaceFirstChar { it.uppercase() }}" else t.replaceFirstChar { it.uppercase() }) }
+                ) {
+                    Text(
+                        if (mine == t) "✓ ${t.replaceFirstChar { it.uppercase() }}" else t.replaceFirstChar { it.uppercase() },
+                        maxLines = 1,
+                        softWrap = false
+                    )
+                }
             }
         }
+        if (mine != null) TextButton(onClick = onRemove) { Text("Remove my vote") }
     }
 }
 
 @Composable
-private fun ReviewCard(r: Review) {
+private fun ReviewCard(r: Review, onLike: () -> Unit, onFlag: () -> Unit, onDelete: () -> Unit) {
+    var confirmFlag by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     ShieldCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(
@@ -355,7 +463,49 @@ private fun ReviewCard(r: Review) {
                 color = colorOf(r.type),
                 style = MaterialTheme.typography.labelLarge
             )
-            if (r.text.isNotEmpty()) Text(r.text)
+            Text(r.authorName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (r.text.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(r.text)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onLike) {
+                    Icon(
+                        if (r.liked) Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
+                        contentDescription = "Helpful",
+                        tint = if (r.liked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text("${r.likes}", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.weight(1f))
+                if (r.mine) TextButton(onClick = { confirmDelete = true }) { Text("Delete") }
+                else IconButton(onClick = { confirmFlag = true }) {
+                    Icon(Icons.Outlined.Flag, contentDescription = "Report review", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
         }
+    }
+    if (confirmFlag) {
+        AlertDialog(
+            onDismissRequest = { confirmFlag = false },
+            title = { Text("Report this review?") },
+            text = { Text("Reviews reported by several people are hidden.") },
+            confirmButton = { Button(onClick = { confirmFlag = false; onFlag() }) { Text("Report") } },
+            dismissButton = { TextButton(onClick = { confirmFlag = false }) { Text("Cancel") } }
+        )
+    }
+    if (confirmDelete) {
+        AlertDialog(
+            onDismissRequest = { confirmDelete = false },
+            title = { Text("Delete your review?") },
+            text = { Text("Your review will be deleted permanently and can't be recovered. Your vote on this number stays.") },
+            confirmButton = {
+                Button(
+                    onClick = { confirmDelete = false; onDelete() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
+        )
     }
 }

@@ -18,10 +18,14 @@ import com.google.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder
 import java.util.Locale
 
 data class Review(
+    val id: String,
     val type: String,
     val text: String,
     val mine: Boolean,
-    val authorName: String = "Anonymous User"
+    val authorName: String = "Anonymous User",
+    val likes: Long = 0,
+    val flags: Long = 0,
+    val liked: Boolean = false
 )
 data class Info(val spam: Long, val scam: Long, val safe: Long, val myVote: String?, val reviews: List<Review>)
 data class ContactInfo(val name: String?, val photo: String?, val location: String? = null)
@@ -51,13 +55,23 @@ object Reports {
         }
     }
 
+    fun firstNumber(text: String, region: String): String? {
+        val util = PhoneNumberUtil.getInstance()
+        val n = util.findNumbers(text, region).firstOrNull()?.number() ?: return null
+        return "${n.countryCode}${n.nationalNumber}"
+    }
+
     fun signedIn() = auth.currentUser?.providerData?.any { it.providerId == "google.com" } == true
 
 
     private fun uid(): String = auth.currentUser?.uid ?: throw IllegalStateException("Not signed in")
     fun versionCode(c: Context): Long = c.packageManager.getPackageInfo(c.packageName, 0).longVersionCode
 
-    suspend fun report(context: Context, tail: String, type: String) {
+    private fun delta(k: String, new: String?, old: String?): Long =
+        (if (new == k) 1L else 0L) - (if (old == k) 1L else 0L)
+
+    suspend fun report(context: Context, tail: String, type: String, previous: String? = null) {
+        if (previous == type) return
         val uid = uid()
         val currentTime = System.currentTimeMillis()
         val doc = db.collection("reports").document(tail)
@@ -68,9 +82,9 @@ object Reports {
         batch.set(
             doc,
             mapOf(
-                "spam" to FieldValue.increment(if (type == "spam") 1 else 0),
-                "scam" to FieldValue.increment(if (type == "scam") 1 else 0),
-                "safe" to FieldValue.increment(if (type == "safe") 1 else 0)
+                "spam" to FieldValue.increment(delta("spam", type, previous)),
+                "scam" to FieldValue.increment(delta("scam", type, previous)),
+                "safe" to FieldValue.increment(delta("safe", type, previous))
             ),
             SetOptions.merge()
         )
@@ -84,7 +98,6 @@ object Reports {
         } catch (e: Exception) {
             e.printStackTrace()
         }
-
         try {
             syncUserStats(context)
         } catch (e: Exception) {
@@ -92,17 +105,113 @@ object Reports {
         }
     }
 
+    suspend fun removeVote(context: Context, tail: String, previous: String) {
+        val uid = uid()
+        val doc = db.collection("reports").document(tail)
+        val userRef = db.collection("users").document(uid)
+        val batch = db.batch()
+        batch.delete(doc.collection("votes").document(uid))
+        batch.delete(userRef.collection("votes").document(tail))
+        batch.delete(doc.collection("reviews").document(uid))
+        batch.set(
+            doc,
+            mapOf(
+                "spam" to FieldValue.increment(delta("spam", null, previous)),
+                "scam" to FieldValue.increment(delta("scam", null, previous)),
+                "safe" to FieldValue.increment(delta("safe", null, previous))
+            ),
+            SetOptions.merge()
+        )
+        batch.commit().await()
+
+        try {
+            val snap = userRef.get().await()
+            if (snap.exists()) {
+                val kept = (snap.get("identifications") as? List<*>).orEmpty()
+                    .filter { (it as? Map<*, *>)?.get("number")?.toString() != tail }
+                userRef.update("identifications", kept).await()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            val dao = SpamDb.get(context).dao()
+            dao.removeMine(tail)
+            dao.deleteIdentifications(tail)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     suspend fun review(context: Context, tail: String, type: String, text: String, anonymous: Boolean = Prefs.anonymousReviews) {
         val name = if (anonymous) "Anonymous User" else (auth.currentUser?.displayName ?: userEmail()?.substringBefore("@") ?: "Verified User")
-        db.collection("reports").document(tail).collection("reviews").document(uid())
-            .set(mapOf(
-                "type" to type,
-                "text" to text,
-                "authorName" to name,
-                "appVersion" to versionCode(context),
-                "time" to FieldValue.serverTimestamp()
-            ))
-            .await()
+        val ref = db.collection("reports").document(tail).collection("reviews").document(uid())
+        val data = mapOf(
+            "type" to type,
+            "text" to text,
+            "authorName" to name,
+            "appVersion" to versionCode(context),
+            "time" to FieldValue.serverTimestamp()
+        )
+        if (ref.get().await().exists()) ref.update(data).await()
+        else ref.set(data + mapOf("likes" to 0, "flags" to 0)).await()
+    }
+
+    suspend fun deleteReview(tail: String) {
+        db.collection("reports").document(tail).collection("reviews").document(uid()).delete().await()
+    }
+
+    suspend fun like(tail: String, rid: String, on: Boolean) {
+        val uid = uid()
+        val review = db.collection("reports").document(tail).collection("reviews").document(rid)
+        val marker = review.collection("likes").document(uid)
+        val key = "${tail}_$rid"
+        val batch = db.batch()
+        batch.update(review, "likes", FieldValue.increment(if (on) 1 else -1))
+        if (on) batch.set(marker, mapOf("t" to System.currentTimeMillis())) else batch.delete(marker)
+        batch.set(
+            db.collection("users").document(uid),
+            mapOf("likedReviews" to if (on) FieldValue.arrayUnion(key) else FieldValue.arrayRemove(key)),
+            SetOptions.merge()
+        )
+        batch.commit().await()
+    }
+
+    suspend fun flagReview(tail: String, rid: String) {
+        val uid = uid()
+        val review = db.collection("reports").document(tail).collection("reviews").document(rid)
+        val batch = db.batch()
+        batch.update(review, "flags", FieldValue.increment(1))
+        batch.set(review.collection("flags").document(uid), mapOf("t" to System.currentTimeMillis()))
+        batch.commit().await()
+    }
+
+    suspend fun loadReviews(tail: String, sort: String = "new"): List<Review> {
+        if (tail.isBlank()) return emptyList()
+        val uid = uid()
+        val liked = try {
+            (db.collection("users").document(uid).get().await().get("likedReviews") as? List<*>)
+                .orEmpty().map { it.toString() }.toSet()
+        } catch (e: Exception) {
+            emptySet()
+        }
+        val base = db.collection("reports").document(tail).collection("reviews")
+        val query = if (sort == "liked") base.orderBy("likes", Query.Direction.DESCENDING).limit(10)
+        else base.orderBy("time", Query.Direction.DESCENDING).limit(10)
+        return query.get().await().documents
+            .map {
+                Review(
+                    it.id,
+                    it.getString("type").orEmpty(),
+                    it.getString("text").orEmpty(),
+                    it.id == uid,
+                    it.getString("authorName") ?: "Anonymous User",
+                    it.getLong("likes") ?: 0,
+                    it.getLong("flags") ?: 0,
+                    "${tail}_${it.id}" in liked
+                )
+            }
+            .filter { it.flags < 3 || it.mine }
     }
 
     suspend fun load(tail: String): Info {
@@ -118,23 +227,6 @@ object Reports {
             mine,
             emptyList()
         )
-    }
-
-    suspend fun loadReviews(tail: String): List<Review> {
-        if (tail.isBlank()) return emptyList()
-        val uid = uid()
-        return db.collection("reports").document(tail).collection("reviews")
-            .orderBy("time", Query.Direction.DESCENDING)
-            .limit(10)
-            .get().await().documents
-            .map {
-                Review(
-                    it.getString("type").orEmpty(),
-                    it.getString("text").orEmpty(),
-                    it.id == uid,
-                    it.getString("authorName") ?: "Anonymous User"
-                )
-            }
     }
 
     @Suppress("UNCHECKED_CAST")

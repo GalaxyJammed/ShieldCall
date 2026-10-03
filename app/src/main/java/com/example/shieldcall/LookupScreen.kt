@@ -35,6 +35,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.google.i18n.phonenumbers.NumberParseException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.content.ClipboardManager
+import android.widget.Toast
 
 data class Country(val region: String, val name: String, val code: Int) {
     val flag: String
@@ -125,6 +127,22 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
                     enabled = ready,
                     modifier = Modifier.fillMaxWidth().height(52.dp)
                 ) { Text("Check number") }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = {
+                        val text = context.getSystemService(ClipboardManager::class.java)
+                            .primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+                        val m = util.findNumbers(text, country.region).firstOrNull()?.number()
+                        val c = m?.let { n -> countries.firstOrNull { it.region == util.getRegionCodeForNumber(n) } }
+                        if (m != null && c != null) {
+                            country = c
+                            digits = util.format(m, PhoneNumberUtil.PhoneNumberFormat.NATIONAL).filter(Char::isDigit)
+                        } else {
+                            Toast.makeText(context, "No phone number found in clipboard", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Paste number from clipboard") }
             }
         }
 

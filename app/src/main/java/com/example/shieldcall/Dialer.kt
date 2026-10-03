@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.telecom.TelecomManager
-import android.telephony.PhoneNumberUtils
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -29,14 +28,40 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import android.telephony.TelephonyManager
+import android.telecom.PhoneAccount
+import androidx.compose.material.icons.filled.Voicemail
 
 private val Green = Color(0xFF2E7D32)
+
+object DialRequest {
+    var number by mutableStateOf<String?>(null)
+}
+
+object LookupRequest {
+    var number by mutableStateOf<String?>(null)
+}
 
 @Composable
 fun LookupWithDialer(onNumber: (String) -> Unit, onSettings: () -> Unit) {
     var dialing by rememberSaveable { mutableStateOf(false) }
+    var initial by rememberSaveable { mutableStateOf("") }
+    val request = DialRequest.number
+    LaunchedEffect(request) {
+        if (request != null) {
+            initial = request
+            dialing = true
+            DialRequest.number = null
+        }
+    }
     if (dialing) {
-        DialerScreen { dialing = false }
+        DialerScreen(initial) {
+            dialing = false
+            initial = ""
+        }
     } else {
         Box(Modifier.fillMaxSize()) {
             LookupScreen(onNumber, onSettings)
@@ -49,11 +74,11 @@ fun LookupWithDialer(onNumber: (String) -> Unit, onSettings: () -> Unit) {
 }
 
 @Composable
-fun DialerScreen(onClose: () -> Unit) {
+fun DialerScreen(initial: String = "", onClose: () -> Unit) {
     val context = LocalContext.current
     val util = remember { PhoneNumberUtil.getInstance() }
     val region = remember { Reports.region(context) }
-    var digits by rememberSaveable { mutableStateOf("") }
+    var digits by rememberSaveable(initial) { mutableStateOf(initial) }
     val parsed = remember(digits) {
         try {
             util.parse(digits, region).takeIf { util.isValidNumber(it) }
@@ -67,15 +92,34 @@ fun DialerScreen(onClose: () -> Unit) {
         context.getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("tel", number, null), null)
     }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { if (it) place() }
-    BackHandler { onClose() }
+    var wantVoicemail by remember { mutableStateOf(false) }
 
-    fun start() {
-        if (context.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) place()
-        else launcher.launch(Manifest.permission.CALL_PHONE)
+    fun placeVoicemail() {
+        context.getSystemService(TelecomManager::class.java)
+            .placeCall(Uri.fromParts(PhoneAccount.SCHEME_VOICEMAIL, "", null), null)
     }
 
-    val canCall = parsed != null || PhoneNumberUtils.isEmergencyNumber(digits)
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (it) {
+            if (wantVoicemail) placeVoicemail() else place()
+        }
+    }
+    BackHandler { onClose() }
+
+    fun start(voicemail: Boolean = false) {
+        wantVoicemail = voicemail
+        if (context.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            if (voicemail) placeVoicemail() else place()
+        } else {
+            launcher.launch(Manifest.permission.CALL_PHONE)
+        }
+    }
+
+    val canCall = parsed != null || try {
+        context.getSystemService(TelephonyManager::class.java).isEmergencyNumber(digits)
+    } catch (e: Exception) {
+        false
+    }
     val p = parsed
 
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -89,6 +133,9 @@ fun DialerScreen(onClose: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.Center)
             )
+            IconButton(onClick = { start(true) }, modifier = Modifier.align(Alignment.CenterEnd)) {
+                Icon(Icons.Default.Voicemail, contentDescription = "Voicemail")
+            }
         }
         Spacer(Modifier.weight(1f))
         Text(
@@ -98,7 +145,7 @@ fun DialerScreen(onClose: () -> Unit) {
             color = if (digits.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
         )
         Text(
-            "Hold 0 for +, start with + for other countries",
+            "Hold 0 for +, hold 1 for voicemail",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -108,7 +155,11 @@ fun DialerScreen(onClose: () -> Unit) {
                 row.forEach { k ->
                     Key(
                         onClick = { if (digits.length < 20) digits += k },
-                        onLong = if (k == "0") ({ if (digits.length < 20) digits += "+" }) else null
+                        onLong = when (k) {
+                            "0" -> ({ if (digits.length < 20) digits += "+" })
+                            "1" -> ({ start(true) })
+                            else -> null
+                        }
                     ) { Text(k, style = MaterialTheme.typography.headlineMedium) }
                 }
             }

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.runtime.saveable.rememberSaveable
 
 private fun flagValue(key: String) = when (key) {
     "spamScam" -> Prefs.spamScam
@@ -45,6 +46,11 @@ fun PreferencesScreen() {
     val dao = remember { SpamDb.get(context).dao() }
     val blocked by dao.blockedFlow().collectAsState(emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
+    var page by rememberSaveable { mutableStateOf<String?>(null) }
+    page?.let {
+        BlockListPage(it, dao) { page = null }
+        return
+    }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
         ScreenTitle("Security")
@@ -77,7 +83,7 @@ fun PreferencesScreen() {
             ActionRow(Icons.Default.Block, "Block the number", "Reject it and add it to blocked numbers", "block")
         }
         Spacer(Modifier.height(24.dp))
-        Section("Blocked numbers (${blocked.size})")
+        Section("Blocklist")
         ShieldCard(Modifier.fillMaxWidth()) {
             Row(
                 Modifier.fillMaxWidth().padding(16.dp),
@@ -94,29 +100,26 @@ fun PreferencesScreen() {
                     Text("Add")
                 }
             }
-            if (blocked.isNotEmpty()) HorizontalDivider()
-            if (blocked.isEmpty()) {
-                Text("No blocked items", Modifier.padding(16.dp))
-            } else {
-                blocked.forEachIndexed { i, b ->
-                    if (i > 0) HorizontalDivider()
-                    Row(
-                        Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            val typeLabel = when (b.type) {
-                                "name" -> "Blocked Name"
-                                "country" -> "Blocked Country"
-                                else -> "Phone Number"
-                            }
-                            Text(b.name.ifBlank { if (b.type == "number") "+${b.number}" else b.number }, style = MaterialTheme.typography.titleMedium)
-                            Text("$typeLabel: ${if (b.type == "number") "+${b.number}" else b.number}", style = MaterialTheme.typography.bodySmall)
-                        }
-                        TextButton(onClick = { dao.unblock(b.number) }) { Text("Unblock") }
-                    }
-                }
+            val nNumbers = blocked.count { it.kind() == "numbers" }
+            val nCountries = blocked.count { it.kind() == "countries" }
+            val nNames = blocked.count { it.kind() == "names" }
+            if (nNumbers > 0) {
+                HorizontalDivider()
+                BlockLink("Blocked Numbers", nNumbers) { page = "numbers" }
             }
+            if (nCountries > 0) {
+                HorizontalDivider()
+                BlockLink("Blocked Countries", nCountries) { page = "countries" }
+            }
+            if (nNames > 0) {
+                HorizontalDivider()
+                BlockLink("Blocked Names", nNames) { page = "names" }
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+        Section("Activity")
+        ShieldCard(Modifier.fillMaxWidth()) {
+            BlockLink("Blocked calls", null) { page = "log" }
         }
         Spacer(Modifier.height(24.dp))
     }
