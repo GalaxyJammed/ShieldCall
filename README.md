@@ -61,11 +61,6 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - How many and which countries looked/searched for your number inside of the app
 - How many seconds you saved from instantly hanging up on spam/scam calls
 
-### 📚 Built-in Number Lists
-- Ships with a list of numbers that were repeatedly reported on public US complaint data
-- Checks US numbers against a free online spam lookup for numbers that aren't in the database yet
-- Results are cached on your device, so repeat callers are recognised instantly
-
 ### 🔒 PIN / Fingerprint Lock
 - Protect the app with a **PIN** or your **fingerprint**
 - Keeps your lookups, blocked numbers and call history private if someone else picks up your phone
@@ -82,7 +77,6 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Your contacts and blocked numbers stay **on your device**
 - ShieldCall only keeps its own short history of the calls it screens, and doesn't read your system call log
 - When you vote or review, the number, your vote and your review are stored online so other users can see them. You must sign in with Google for this, and your account ID is stored as an anonymous identifier, never shown to anyone
-- Unknown US numbers may be checked against a free online spam lookup service
 - ShieldCall has no ads and does not sell your data
 - You can delete all data at any given moment when you sign in with your Google Account
 
@@ -93,7 +87,7 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 3. Grant the three permissions the welcome screen asks for:
    - Contacts and phone state
    - Display over other apps
-   - Set ShieldCall as your **Caller ID & spam app**
+   - Set ShieldCall as your default **Caller ID & spam app** as well as **Dial app**
 4. Look up a number, or wait for the next call (make sure **Automatic call lookup** is enabled)
 
 Simple and easy!
@@ -126,4 +120,4 @@ ShieldCall requires Android 10 (API level 29) or higher.
 
 ## 📄 License
 
-The source code is MIT licensed. The bundled number list and third-party services (Firebase, SkipCalls) are subject to their own terms.
+The source code is MIT licensed. The bundled number list and third-party services (Firebase) are subject to their own terms.
