@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,13 +14,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.clickable
 
 object Update {
     private const val OWNER = "galaxyjammed"
@@ -73,32 +74,21 @@ object Update {
 }
 
 @Composable
-fun UpdateScreen(version: String, url: String) {
+fun UpdateCard() {
+    val version = Update.latest ?: return
     val context = LocalContext.current
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    val red = Color(0xFFC62828)
+    ShieldCard(
+        Modifier.fillMaxWidth().clickable {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Update.url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        },
+        containerColor = red.copy(alpha = 0.15f)
     ) {
-        ShieldCard(Modifier.fillMaxWidth()) {
-            Column(
-                Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(48.dp), tint = MaterialTheme.colorScheme.primary)
-                Text("New version available", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                Text(
-                    "Version $version is out. Download it to continue using ShieldCall.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center
-                )
-                Button(
-                    onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Download update") }
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Warning, contentDescription = null, tint = red, modifier = Modifier.padding(end = 12.dp))
+            Column {
+                Text("You're on an outdated version", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = red)
+                Text("Version $version is available. Tap to download it.", style = MaterialTheme.typography.bodySmall)
             }
         }
     }

@@ -77,6 +77,8 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
     val recents = Prefs.recentLookups
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
+        UpdateCard()
+        if (Update.latest != null) Spacer(Modifier.height(16.dp))
         ShieldCard(Modifier.fillMaxWidth()) {
             Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
                 IconButton(onClick = onSettings, modifier = Modifier.align(Alignment.CenterStart)) {

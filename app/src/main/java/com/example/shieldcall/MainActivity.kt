@@ -55,9 +55,7 @@ class MainActivity : FragmentActivity() {
                             LockScreen { isUnlocked = true }
                         } else {
                             LaunchedEffect(Unit) { Update.check(this@MainActivity) }
-                            val newVersion = Update.latest
-                            if (newVersion != null) UpdateScreen(newVersion, Update.url)
-                            else Root(perms, ::requestPhone, ::requestOverlay, ::requestRole)
+                            Root(perms, ::requestPhone, ::requestOverlay, ::requestRole)
                         }
                     }
                 }
