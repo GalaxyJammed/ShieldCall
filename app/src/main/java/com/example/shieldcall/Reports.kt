@@ -16,6 +16,7 @@ import com.google.i18n.phonenumbers.NumberParseException
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.geocoding.PhoneNumberOfflineGeocoder
 import java.util.Locale
+import com.google.firebase.firestore.DocumentSnapshot
 
 data class Review(
     val id: String,
@@ -27,6 +28,7 @@ data class Review(
     val flags: Long = 0,
     val liked: Boolean = false
 )
+data class ReviewPage(val reviews: List<Review>, val cursor: DocumentSnapshot?, val more: Boolean)
 data class Info(val spam: Long, val scam: Long, val safe: Long, val myVote: String?, val reviews: List<Review>)
 data class ContactInfo(val name: String?, val photo: String?, val location: String? = null)
 
@@ -225,8 +227,8 @@ object Reports {
         batch.commit().await()
     }
 
-    suspend fun loadReviews(tail: String, sort: String = "new"): List<Review> {
-        if (tail.isBlank()) return emptyList()
+    suspend fun loadReviews(tail: String, sort: String = "new", after: DocumentSnapshot? = null): ReviewPage {
+        if (tail.isBlank()) return ReviewPage(emptyList(), null, false)
         val uid = uid()
         val liked = try {
             (db.collection("users").document(uid).get().await().get("likedReviews") as? List<*>)
@@ -235,9 +237,11 @@ object Reports {
             emptySet()
         }
         val base = db.collection("reports").document(tail).collection("reviews")
-        val query = if (sort == "liked") base.orderBy("likes", Query.Direction.DESCENDING).limit(10)
-        else base.orderBy("time", Query.Direction.DESCENDING).limit(10)
-        return query.get().await().documents
+        var query: Query = if (sort == "liked") base.orderBy("likes", Query.Direction.DESCENDING)
+        else base.orderBy("time", Query.Direction.DESCENDING)
+        if (after != null) query = query.startAfter(after)
+        val docs = query.limit(10).get().await().documents
+        val reviews = docs
             .map {
                 Review(
                     it.id,
@@ -251,6 +255,7 @@ object Reports {
                 )
             }
             .filter { it.flags < 3 || it.mine }
+        return ReviewPage(reviews, docs.lastOrNull(), docs.size == 10)
     }
 
     suspend fun load(tail: String): Info {

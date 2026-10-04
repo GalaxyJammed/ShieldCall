@@ -1,5 +1,6 @@
 package com.example.shieldcall
 
+import android.bluetooth.BluetoothDevice
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.InCallService
@@ -18,6 +19,14 @@ object CallManager {
         private set
     var speaker by mutableStateOf(false)
         private set
+    var route by mutableIntStateOf(CallAudioState.ROUTE_EARPIECE)
+         private set
+    var supported by mutableIntStateOf(0)
+        private set
+    var btDevices by mutableStateOf<List<BluetoothDevice>>(emptyList())
+        private set
+    var activeBt by mutableStateOf<BluetoothDevice?>(null)
+        private set
     var service: InCallService? = null
 
     private val callback = object : Call.Callback() {
@@ -26,6 +35,14 @@ object CallManager {
         }
 
         override fun onDetailsChanged(call: Call, details: Call.Details) {
+            tick++
+        }
+
+        override fun onParentChanged(call: Call, parent: Call?) {
+            tick++
+        }
+
+        override fun onChildrenChanged(call: Call, children: MutableList<Call>) {
             tick++
         }
     }
@@ -42,9 +59,23 @@ object CallManager {
         tick++
     }
 
+    fun ringing(): Call? = calls.firstOrNull { it.parent == null && it.state == Call.STATE_RINGING }
+
     fun audio(state: CallAudioState) {
         muted = state.isMuted
-        speaker = state.route == CallAudioState.ROUTE_SPEAKER
+        route = state.route
+        supported = state.supportedRouteMask
+        btDevices = try {
+            state.supportedBluetoothDevices.toList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+        activeBt = try {
+            state.activeBluetoothDevice
+        } catch (e: Exception) {
+            null
+        }
+        speaker = route == CallAudioState.ROUTE_SPEAKER
     }
 
     fun toggleMute() {
@@ -54,5 +85,12 @@ object CallManager {
     fun toggleSpeaker() {
         service?.setAudioRoute(if (speaker) CallAudioState.ROUTE_WIRED_OR_EARPIECE else CallAudioState.ROUTE_SPEAKER)
     }
-    fun ringing(): Call? = calls.firstOrNull { it.state == Call.STATE_RINGING }
+
+    fun chooseRoute(r: Int) {
+        service?.setAudioRoute(r)
+    }
+
+    fun useBluetooth(d: BluetoothDevice) {
+        service?.requestBluetoothAudio(d)
+    }
 }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import androidx.compose.runtime.mutableIntStateOf
 
 object Prefs {
     var dark by mutableStateOf(false)
@@ -37,6 +38,12 @@ object Prefs {
         private set
     var crashReports by mutableStateOf(true)
         private set
+    var quiet by mutableStateOf(false)
+        private set
+    var quietStart by mutableIntStateOf(22 * 60)
+        private set
+    var quietEnd by mutableIntStateOf(7 * 60)
+        private set
 
     private fun prefs(c: Context) = c.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
@@ -57,6 +64,9 @@ object Prefs {
         val recentsStr = prefs(c).getString("recentLookups", "") ?: ""
         recentLookups = if (recentsStr.isBlank()) emptyList() else recentsStr.split(",")
         crashReports = prefs(c).getBoolean("crashReports", true)
+        quiet = prefs(c).getBoolean("quiet", false)
+        quietStart = prefs(c).getInt("quietStart", 22 * 60)
+        quietEnd = prefs(c).getInt("quietEnd", 7 * 60)
     }
 
     fun setFullScreen(c: Context, v: Boolean) {
@@ -131,5 +141,26 @@ object Prefs {
         crashReports = v
         prefs(c).edit().putBoolean("crashReports", v).apply()
         FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(v)
+    }
+
+    fun setQuiet(c: Context, v: Boolean) {
+        quiet = v
+        prefs(c).edit().putBoolean("quiet", v).apply()
+    }
+
+    fun setQuietTimes(c: Context, start: Int, end: Int) {
+        quietStart = start
+        quietEnd = end
+        prefs(c).edit().putInt("quietStart", start).putInt("quietEnd", end).apply()
+    }
+
+    fun quietNow(c: Context): Boolean {
+        val p = prefs(c)
+        if (!p.getBoolean("quiet", false)) return false
+        val s = p.getInt("quietStart", 22 * 60)
+        val e = p.getInt("quietEnd", 7 * 60)
+        val cal = java.util.Calendar.getInstance()
+        val now = cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+        return if (s <= e) now in s until e else now >= s || now < e
     }
 }

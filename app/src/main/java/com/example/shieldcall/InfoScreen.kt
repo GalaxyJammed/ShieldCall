@@ -43,6 +43,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.rememberLazyListState
+import com.google.firebase.firestore.DocumentSnapshot
+import androidx.compose.material.icons.filled.PersonAdd
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -66,9 +68,21 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     var failed by remember { mutableStateOf(false) }
     var reload by remember { mutableIntStateOf(0) }
     var text by remember { mutableStateOf("") }
+    var adding by remember { mutableStateOf(false) }
 
     var contactInfo by remember { mutableStateOf<ContactInfo?>(null) }
     var sort by remember { mutableStateOf("new") }
+
+    var cursor by remember { mutableStateOf<DocumentSnapshot?>(null) }
+    var more by remember { mutableStateOf(false) }
+    var loadingMore by remember { mutableStateOf(false) }
+
+    suspend fun fetch(reset: Boolean) {
+        val page = Reports.loadReviews(tail, sort, if (reset) null else cursor)
+        reviews = if (reset) page.reviews else reviews.orEmpty() + page.reviews
+        cursor = page.cursor
+        more = page.more
+    }
 
     var showNotice by remember { mutableStateOf(false) }
     LaunchedEffect(showNotice) {
@@ -79,7 +93,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     }
 
 
-    LaunchedEffect(tail) {
+    LaunchedEffect(tail, ContactsVersion.n) {
         withContext(Dispatchers.IO) {
             contactInfo = Reports.loadContactInfo(context, tail)
         }
@@ -89,7 +103,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
         if (!signed) return@LaunchedEffect
         try {
             info = Reports.load(tail)
-            if (reviews != null) reviews = Reports.loadReviews(tail, sort)
+            if (reviews != null) if (reviews != null) fetch(true)
             failed = false
         } catch (e: Exception) {
             Log.e("Shield", e.toString())
@@ -100,7 +114,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     LaunchedEffect(sort) {
         if (reviews != null) {
             try {
-                reviews = Reports.loadReviews(tail, sort)
+                fetch(true)
             } catch (e: Exception) {
                 Log.e("Shield", e.toString())
             }
@@ -199,6 +213,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     val i = info
     val listState = rememberLazyListState()
     Box(Modifier.fillMaxSize()) {
+        if (adding) NewContactDialog(displayNum) { adding = false }
         LazyColumn(
             Modifier.fillMaxSize().scrollbar(listState).padding(horizontal = 24.dp),
             state = listState,
@@ -244,6 +259,14 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                             }
                         )
                     )
+
+                    if (contactInfo?.name.isNullOrBlank()) {
+                        TextButton(onClick = { adding = true }, contentPadding = PaddingValues(0.dp)) {
+                            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Add to contacts")
+                        }
+                    }
                     if (!contactInfo?.location.isNullOrBlank()) {
                         Text(
                             text = contactInfo!!.location!!,
@@ -302,7 +325,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                         onClick = {
                             scope.launch {
                                 try {
-                                    reviews = Reports.loadReviews(tail, sort)
+                                    fetch(true)
                                 } catch (e: Exception) {
                                     Log.e("Shield", e.toString())
                                     failed = true
@@ -321,7 +344,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                         }
                     }
                     if (r.isEmpty()) item { Text("No reviews yet.") }
-                    items(r, key = { it.id }) { rv ->
+                    items(r, key = { it.id }) {  rv ->
                         ReviewCard(
                             rv,
                             onLike = {
@@ -335,7 +358,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                                             Reports.like(tail, rv.id, on)
                                         } catch (e: Exception) {
                                             Log.e("Shield", e.toString())
-                                            reviews = Reports.loadReviews(tail, sort)
+                                            fetch(true)
                                         }
                                     }
                                 }
@@ -361,6 +384,24 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                                 }
                             }
                         )
+                    }
+                    if (more) item {
+                        OutlinedButton(
+                            enabled = !loadingMore,
+                            onClick = {
+                                scope.launch {
+                                    loadingMore = true
+                                    try {
+                                        fetch(false)
+                                    } catch (e: Exception) {
+                                        Log.e("Shield", e.toString())
+                                        failed = true
+                                    }
+                                    loadingMore = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text(if (loadingMore) "Loading…" else "Load more reviews") }
                     }
                 }
                 item { Spacer(Modifier.height(24.dp)) }

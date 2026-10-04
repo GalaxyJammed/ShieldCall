@@ -60,8 +60,10 @@ class ScreeningService : CallScreeningService() {
                         (Prefs.flag(this, "business") && isBusiness(number, region))
                 )
 
-        if (listed || (matched && action != "popup")) {
-            if (!listed && action == "block" && key != null) dao.block(BlockedNumber(key, ""))
+        val quiet = name == null && Prefs.quietNow(this)
+
+        if (listed || quiet || (matched && action != "popup")) {
+            if (!listed && !quiet && action == "block" && key != null) dao.block(BlockedNumber(key, ""))
             logCall(dao, key, number, name, "Blocked")
             dao.addHangup(HangupEntry(number = key ?: number, time = System.currentTimeMillis(), secondsSaved = 15))
             respondToCall(

@@ -35,11 +35,12 @@ class ShieldInCallService : InCallService() {
 
     override fun onCallAdded(call: Call) {
         CallManager.add(call)
+        callAudioState?.let { CallManager.audio(it) }
         Prefs.load(this)
         val ringing = call.state == Call.STATE_RINGING
         if (ringing) incomingCalls.add(call)
         val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
-        val mini = ringing && !Prefs.fullScreen && !locked && Settings.canDrawOverlays(this)
+        val mini = ringing && CallManager.calls.size == 1 && !Prefs.fullScreen && !locked && Settings.canDrawOverlays(this)
         val intent = Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         if (ringing) notifyIncoming(call, intent, !mini)
         if (mini) showMini(call) else try {

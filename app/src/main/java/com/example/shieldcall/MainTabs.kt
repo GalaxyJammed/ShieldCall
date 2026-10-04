@@ -59,12 +59,14 @@ fun MainTabs(tab: Int, onTab: (Int) -> Unit, onNumber: (String) -> Unit, onSetti
                 else -> PreferencesScreen()
             }
         }
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-        ) {
-            BottomBar(tab, onTab)
+        if (!UiState.hideBar) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+            ) {
+                BottomBar(tab, onTab)
+            }
         }
     }
 }

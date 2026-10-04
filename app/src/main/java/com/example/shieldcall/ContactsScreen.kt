@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.filled.PersonAdd
 
 data class ContactItem(
     val name: String,
@@ -92,9 +93,10 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
     var pendingCall by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
     val rowState = rememberLazyListState()
+    var adding by remember { mutableStateOf(false) }
 
     fun place(number: String) {
-        context.getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("tel", number, null), null)
+        SimChoice.placeNumber(context, number)
     }
 
     val callLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
@@ -112,7 +114,7 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
         }
     }
 
-    LaunchedEffect(Unit) { contacts = withContext(Dispatchers.IO) { loadContacts(context) } }
+    LaunchedEffect(ContactsVersion.n) { contacts = withContext(Dispatchers.IO) { loadContacts(context) } }
 
     val recents = remember(calls) {
         calls.map {
@@ -145,6 +147,9 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         ShieldCard(Modifier.fillMaxWidth()) {
             Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp)) {
+                IconButton(onClick = { adding = true }, modifier = Modifier.align(Alignment.CenterStart)) {
+                    Icon(Icons.Default.PersonAdd, contentDescription = "New contact")
+                }
                 Text(
                     when (mode) {
                         0 -> "Contacts"
@@ -269,6 +274,7 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
             }
         }
     }
+    if (adding) NewContactDialog("") { adding = false }
 }
 
 @Composable

@@ -77,6 +77,9 @@ fun PreferencesScreen() {
             }
         }
         Spacer(Modifier.height(24.dp))
+        Section("Quiet hours")
+        QuietHoursCard()
+        Spacer(Modifier.height(24.dp))
         Section("When a call matches")
         ShieldCard(Modifier.fillMaxWidth()) {
             ActionRow(Icons.Default.CallEnd, "Hang up immediately", "Reject the call without ringing", "hangup")

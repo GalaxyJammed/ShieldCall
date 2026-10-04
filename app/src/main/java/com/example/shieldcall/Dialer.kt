@@ -41,6 +41,10 @@ object DialRequest {
     var number by mutableStateOf<String?>(null)
 }
 
+object UiState {
+    var hideBar by mutableStateOf(false)
+}
+
 object LookupRequest {
     var number by mutableStateOf<String?>(null)
 }
@@ -49,6 +53,8 @@ object LookupRequest {
 fun LookupWithDialer(onNumber: (String) -> Unit, onSettings: () -> Unit) {
     var dialing by rememberSaveable { mutableStateOf(false) }
     var initial by rememberSaveable { mutableStateOf("") }
+    LaunchedEffect(dialing) { UiState.hideBar = dialing }
+    DisposableEffect(Unit) { onDispose { UiState.hideBar = false } }
     val request = DialRequest.number
     LaunchedEffect(request) {
         if (request != null) {
@@ -67,7 +73,7 @@ fun LookupWithDialer(onNumber: (String) -> Unit, onSettings: () -> Unit) {
             LookupScreen(onNumber, onSettings)
             FloatingActionButton(
                 onClick = { dialing = true },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(24.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 24.dp, bottom = 104.dp)
             ) { Icon(Icons.Default.Dialpad, contentDescription = "Dial") }
         }
     }
@@ -76,6 +82,8 @@ fun LookupWithDialer(onNumber: (String) -> Unit, onSettings: () -> Unit) {
 @Composable
 fun DialerScreen(initial: String = "", onClose: () -> Unit) {
     val context = LocalContext.current
+    val sims = remember { SimChoice.accounts(context) }
+    var selectedSim by remember { mutableStateOf(SimChoice.selected(context)?.id) }
     val util = remember { PhoneNumberUtil.getInstance() }
     val region = remember { Reports.region(context) }
     var digits by rememberSaveable(initial) { mutableStateOf(initial) }
@@ -89,14 +97,13 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
 
     fun place() {
         val number = parsed?.let { "+${it.countryCode}${it.nationalNumber}" } ?: digits
-        context.getSystemService(TelecomManager::class.java).placeCall(Uri.fromParts("tel", number, null), null)
+        SimChoice.placeNumber(context, number)
     }
 
     var wantVoicemail by remember { mutableStateOf(false) }
 
     fun placeVoicemail() {
-        context.getSystemService(TelecomManager::class.java)
-            .placeCall(Uri.fromParts(PhoneAccount.SCHEME_VOICEMAIL, "", null), null)
+        SimChoice.placeUri(context, Uri.fromParts(PhoneAccount.SCHEME_VOICEMAIL, "", null))
     }
 
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -149,6 +156,21 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        if (sims.size > 1) {
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                sims.forEach { h ->
+                    FilterChip(
+                        selected = selectedSim == h.id,
+                        onClick = {
+                            SimChoice.select(context, h)
+                            selectedSim = h.id
+                        },
+                        label = { Text(SimChoice.label(context, h) ?: "SIM") }
+                    )
+                }
+            }
+        }
         Spacer(Modifier.weight(1f))
         listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("*", "0", "#")).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
