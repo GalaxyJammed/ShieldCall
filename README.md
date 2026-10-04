@@ -9,7 +9,7 @@
 ![Min SDK](https://img.shields.io/badge/Min%20SDK-29-blue)
 ![GitHub release](https://img.shields.io/github/v/release/galaxyjammed/ShieldCall?logo=github&label=GitHub%20release)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey?logo=mit)
-![Project Status](https://img.shields.io/badge/Project%20Status-Early_WIP-blue)
+![Project Status](https://img.shields.io/badge/Project%20Status-WIP-blue)
 
 ⭐ **If ShieldCall helps you, please star this repository. It helps other users find the project.**
 
@@ -20,7 +20,7 @@
 ShieldCall is a free, open-source Android app that tells you who is calling before you pick up. When a call comes in, a card appears on your screen showing whether the number is a saved contact, spam, or a scam. You can also look up any number yourself, see how other people rated it, and leave your own review. Decide what to block, and ShieldCall hangs up for you.
 
 <div align="center">
-  <img width="100" height="100" alt="app_logo" src="https://github.com/user-attachments/assets/f49c5dbe-6230-40e2-8e35-fbf3d8438b87" />
+  <img width="100" height="100" alt="app_logo" src="https://github.com/user-attachments/assets/eafcdf2b-c13d-473b-bac3-0318bf0571ef" />
   <br>
   <em>"Your calls, no trouble"</em>
 </div>
