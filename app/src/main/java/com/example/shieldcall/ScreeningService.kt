@@ -47,6 +47,7 @@ class ScreeningService : CallScreeningService() {
         val isNameBlocked = name != null && blockedNames.any { name.lowercase().contains(it) }
         val isCountryBlocked = countryName in blockedCountries || callRegion.lowercase() in blockedCountries
         val listed = isNumberBlocked || isNameBlocked || isCountryBlocked
+        val prefixBlocked = key != null && dao.allBlocked().any { it.type == "prefix" && key.startsWith(it.number) }
 
         val hidden = number.isEmpty() || details.handlePresentation != TelecomManager.PRESENTATION_ALLOWED
         val action = Prefs.actionOf(this)
@@ -60,12 +61,19 @@ class ScreeningService : CallScreeningService() {
                         (Prefs.flag(this, "business") && isBusiness(number, region))
                 )
 
-        val quiet = name == null && Prefs.quietNow(this)
+        val allowed = key != null && AllowList.contains(this, key)
+        val quiet = !allowed && name == null && Prefs.quietNow(this)
 
-        if (listed || quiet || (matched && action != "popup")) {
-            if (!listed && !quiet && action == "block" && key != null) dao.block(BlockedNumber(key, ""))
+        if (!allowed && (listed || quiet || prefixBlocked || (matched && action != "popup"))) {
+            if (!listed && !quiet && !prefixBlocked && action == "block" && key != null) dao.block(BlockedNumber(key, ""))
             logCall(dao, key, number, name, "Blocked")
-            dao.addHangup(HangupEntry(number = key ?: number, time = System.currentTimeMillis(), secondsSaved = 15))
+            val reason = when {
+                listed -> "Blocklist"
+                prefixBlocked -> "Prefix"
+                quiet -> "Quiet hours"
+                else -> "Rule"
+            }
+            dao.addHangup(HangupEntry(number = key ?: number, time = System.currentTimeMillis(), reason = reason))
             respondToCall(
                 details,
                 CallResponse.Builder().setDisallowCall(true).setRejectCall(true).setSkipNotification(true).build()

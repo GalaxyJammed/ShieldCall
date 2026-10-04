@@ -122,7 +122,8 @@ class ShieldInCallService : InCallService() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
             val first = "$number Missed Call"
-            val second = "Safety Ranking: $ranking"
+            val warning = if (name == null && key != null && CallGuard.isForeign(this@ShieldInCallService, key)) "\n⚠ Foreign number. Be careful calling back." else ""
+            val second = "Safety Ranking: $ranking$warning"
             val n = NotificationCompat.Builder(this@ShieldInCallService, "missed")
                 .setSmallIcon(android.R.drawable.sym_call_missed)
                 .setContentTitle(name ?: "Unknown Number")

@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 fun BlockedNumber.kind() = when (type) {
     "country" -> "countries"
     "name" -> "names"
+    "prefix" -> "prefixes"
     else -> "numbers"
 }
 
@@ -47,6 +48,7 @@ fun BlockListPage(kind: String, dao: SpamDao, onBack: () -> Unit) {
         "numbers" -> "Blocked Numbers"
         "countries" -> "Blocked Countries"
         "names" -> "Blocked Names"
+        "prefixes" -> "Blocked Prefixes"
         else -> "Blocked Calls"
     }
 

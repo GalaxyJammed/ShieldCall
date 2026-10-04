@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,19 +15,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.CallEnd
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Gavel
+import androidx.compose.material.icons.filled.HowToVote
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -36,17 +38,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 private val AmberColor = Color(0xFFF9A825)
 private val RedColor = Color(0xFFC62828)
 private val GreenColor = Color(0xFF2E7D32)
+private const val DAY = 24L * 60 * 60 * 1000
 
 enum class GraphViewMode(val label: String) {
-    DAILY("Daily View"),
-    WEEKLY("Weekly View"),
-    MONTHLY("Monthly View")
+    DAILY("Today"),
+    WEEKLY("7 Days"),
+    MONTHLY("4 Weeks")
 }
 
 data class BarData(
@@ -69,27 +77,38 @@ fun StatsScreen() {
     val spamCount = remember(identifications) { identifications.count { it.type.lowercase() == "spam" } }
     val scamCount = remember(identifications) { identifications.count { it.type.lowercase() == "scam" } }
     val safeCount = remember(identifications) { identifications.count { it.type.lowercase() == "safe" } }
-    val totalIdentified = remember(identifications) { identifications.size }
+    val totalIdentified = identifications.size
 
     val totalSecondsSaved = remember(hangups) { hangups.sumOf { it.secondsSaved.toLong() } }
     val formattedTimeSaved = remember(totalSecondsSaved) { formatTimeSaved(totalSecondsSaved) }
-    val hangupCount = remember(hangups) { hangups.size }
+    val hangupCount = hangups.size
+
+    val now = remember { System.currentTimeMillis() }
+    val weekBlocked = remember(hangups) { hangups.count { it.time >= now - 7 * DAY } }
+    val monthHangups = remember(hangups) { hangups.filter { it.time >= now - 30 * DAY } }
+    val byReason = remember(monthHangups) {
+        monthHangups.groupingBy { it.reason.ifBlank { "Other" } }.eachCount().entries.sortedByDescending { it.value }
+    }
+
+    val reviewsWritten = remember { Contribution.reviews(context) }
+    val lookups = remember { LookupStats.total(context) }
+    val lookupCountries = remember { LookupStats.countries(context) }
 
     var viewMode by remember { mutableStateOf(GraphViewMode.DAILY) }
-    var userAnalytics by remember { mutableStateOf(UserAnalytics()) }
-    var selectedDetailType by remember { mutableStateOf<String?>(null) }
+    var showCountries by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        userAnalytics = Reports.loadUserAnalytics()
+    val allBars = remember(identifications) {
+        GraphViewMode.entries.associateWith { calculateBarData(identifications, it) }
     }
+    val barDataList = allBars[viewMode].orEmpty()
 
     fun shareStats() {
         val shareText = "🛡️ My ShieldCall Stats:\n" +
                 "• $spamCount Spam calls identified\n" +
                 "• $scamCount Scam calls identified\n" +
                 "• $safeCount Safe callers identified\n" +
-                "• $formattedTimeSaved saved from instant hangups!\n\n" +
-                "Protect your phone from spam calls with ShieldCall: https://play.google.com/store/apps/details?id=${context.packageName}"
+                "• ${monthHangups.size} unwanted calls blocked this month\n\n" +
+                "Protect your phone from spam calls with ShieldCall: https://github.com/galaxyjammed/ShieldCall/releases"
 
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
@@ -134,6 +153,20 @@ fun StatsScreen() {
 
         Spacer(Modifier.height(16.dp))
 
+        if (totalIdentified == 0 && hangupCount == 0 && lookups == 0) {
+            ShieldCard(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Nothing here yet", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Your stats appear as you vote on numbers, check numbers and block unwanted calls.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+
         Section("Identified Calls")
         ShieldCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
@@ -143,10 +176,7 @@ fun StatsScreen() {
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(Modifier.height(12.dp))
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StatBox("Spam", spamCount, AmberColor, Icons.Default.ReportProblem, Modifier.weight(1f))
                     StatBox("Scam", scamCount, RedColor, Icons.Default.Gavel, Modifier.weight(1f))
                     StatBox("Safe", safeCount, GreenColor, Icons.Default.CheckCircle, Modifier.weight(1f))
@@ -156,7 +186,27 @@ fun StatsScreen() {
 
         Spacer(Modifier.height(20.dp))
 
-        Section("Instant Hang up Savings")
+        Section("Calls Blocked")
+        ShieldCard(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatBox("This week", weekBlocked, MaterialTheme.colorScheme.primary, Icons.Default.Block, Modifier.weight(1f))
+                    StatBox("Last 30 days", monthHangups.size, MaterialTheme.colorScheme.primary, Icons.Default.Block, Modifier.weight(1f))
+                }
+                if (byReason.isNotEmpty()) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        byReason.joinToString("  ·  ") { "${it.key} ${it.value}" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        Section("Estimated Time Saved")
         ShieldCard(Modifier.fillMaxWidth()) {
             Row(
                 Modifier
@@ -186,7 +236,7 @@ fun StatsScreen() {
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
-                        text = "Saved from Instant Hang up ($hangupCount calls avoided)",
+                        text = "About 15 seconds per blocked call ($hangupCount calls avoided)",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -196,75 +246,27 @@ fun StatsScreen() {
 
         Spacer(Modifier.height(20.dp))
 
-        Section("Profile & Search Analytics")
+        Section("Your Activity")
         ShieldCard(Modifier.fillMaxWidth()) {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { selectedDetailType = "views" }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Visibility,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Who viewed my profile", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("${userAnalytics.profileViews} profile views recorded", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { selectedDetailType = "views" }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "View Countries Detail",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+            Column(Modifier.padding(16.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatBox("Votes", totalIdentified, MaterialTheme.colorScheme.primary, Icons.Default.HowToVote, Modifier.weight(1f))
+                    StatBox("Reviews", reviewsWritten, MaterialTheme.colorScheme.primary, Icons.Default.EditNote, Modifier.weight(1f))
+                    StatBox(
+                        "Lookups",
+                        lookups,
+                        MaterialTheme.colorScheme.primary,
+                        Icons.Default.Search,
+                        Modifier.weight(1f).clickable(enabled = lookups > 0) { showCountries = true }
+                    )
                 }
-
-                HorizontalDivider()
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { selectedDetailType = "searches" }
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Who searched for me", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("${userAnalytics.profileSearches} lookups recorded", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    IconButton(onClick = { selectedDetailType = "searches" }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "View Countries Detail",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                if (lookups > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Tap Lookups to see which countries you checked",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -274,78 +276,14 @@ fun StatsScreen() {
         Section("Identification Activity")
         ShieldCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = {
-                        val modes = GraphViewMode.entries
-                        val prevIndex = (viewMode.ordinal - 1 + modes.size) % modes.size
-                        viewMode = modes[prevIndex]
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Previous Mode"
-                        )
-                    }
-
-                    Text(
-                        text = viewMode.label,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    IconButton(onClick = {
-                        val modes = GraphViewMode.entries
-                        val nextIndex = (viewMode.ordinal + 1) % modes.size
-                        viewMode = modes[nextIndex]
-                    }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Next Mode"
-                        )
-                    }
-                }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    GraphViewMode.entries.forEach { mode ->
-                        val selected = mode == viewMode
-                        Box(
-                            modifier = Modifier
-                                .padding(horizontal = 4.dp)
-                                .background(
-                                    if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clickable { viewMode = mode }
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                text = when (mode) {
-                                    GraphViewMode.DAILY -> "Daily"
-                                    GraphViewMode.WEEKLY -> "Weekly"
-                                    GraphViewMode.MONTHLY -> "Monthly"
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+                ViewModeSelector(
+                    selectedMode = viewMode,
+                    onModeSelected = { viewMode = it }
+                )
 
                 Spacer(Modifier.height(12.dp))
 
-                val barDataList = remember(identifications, viewMode) {
-                    calculateBarData(identifications, viewMode)
-                }
-
-                val peakInfo = remember(barDataList, viewMode) {
+                val peakInfo = remember(barDataList) {
                     val maxBar = barDataList.maxByOrNull { it.total }
                     if (maxBar != null && maxBar.total > 0) {
                         val typeInfo = when {
@@ -353,9 +291,9 @@ fun StatsScreen() {
                             maxBar.scam >= maxBar.spam && maxBar.scam >= maxBar.safe -> "${maxBar.scam} Scam"
                             else -> "${maxBar.safe} Safe"
                         }
-                        "Peak identification: ${maxBar.label} (${maxBar.total} total, $typeInfo)"
+                        "Busiest: ${maxBar.label} (${maxBar.total} total, $typeInfo)"
                     } else {
-                        "No identifications recorded in this view"
+                        "No identifications in this period"
                     }
                 }
 
@@ -373,7 +311,7 @@ fun StatsScreen() {
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
                     label = "graph_anim"
                 ) { targetMode ->
-                    ActivityGraphCanvas(barDataList = calculateBarData(identifications, targetMode))
+                    ActivityGraphCanvas(barDataList = allBars[targetMode].orEmpty())
                 }
 
                 Spacer(Modifier.height(16.dp))
@@ -393,58 +331,93 @@ fun StatsScreen() {
         Spacer(Modifier.height(96.dp))
     }
 
-    if (selectedDetailType != null) {
-        val isViews = selectedDetailType == "views"
-        val title = if (isViews) "Profile Views by Country" else "Searches by Country"
-        val countryMap = if (isViews) userAnalytics.viewCountries else userAnalytics.searchCountries
-
+    if (showCountries) {
         AlertDialog(
-            onDismissRequest = { selectedDetailType = null },
-            title = {
-                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            },
+            onDismissRequest = { showCountries = false },
+            title = { Text("Numbers checked by country", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
             text = {
-                if (countryMap.isEmpty()) {
-                    Text("No country breakdown data recorded yet.")
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 320.dp)
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        countryMap.entries.sortedByDescending { it.value }.forEach { (country, count) ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = country,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                Text(
-                                    text = "$count ${if (isViews) "Views" else "Searches"}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    lookupCountries.entries.sortedByDescending { it.value }.forEach { (country, count) ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(country, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                            Text(
+                                "$count",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
                     }
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { selectedDetailType = null }) {
-                    Text("Close")
+            confirmButton = { TextButton(onClick = { showCountries = false }) { Text("Close") } }
+        )
+    }
+}
+
+@Composable
+private fun ViewModeSelector(
+    selectedMode: GraphViewMode,
+    onModeSelected: (GraphViewMode) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            GraphViewMode.entries.forEach { mode ->
+                val selected = mode == selectedMode
+                val backgroundColor = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    Color.Transparent
+                }
+                val contentColor = if (selected) {
+                    MaterialTheme.colorScheme.onPrimary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(36.dp)
+                        .clip(CircleShape)
+                        .background(backgroundColor)
+                        .clickable { onModeSelected(mode) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = mode.label,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        color = contentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
-        )
+        }
     }
 }
 
@@ -462,7 +435,7 @@ private fun StatBox(
         colors = CardDefaults.cardColors(containerColor = accentColor.copy(alpha = 0.12f))
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(12.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
@@ -481,7 +454,8 @@ private fun StatBox(
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
             )
         }
     }
@@ -605,87 +579,67 @@ private fun ActivityGraphCanvas(barDataList: List<BarData>) {
     }
 }
 
+private fun startOfToday(): Long {
+    val c = Calendar.getInstance()
+    c.set(Calendar.HOUR_OF_DAY, 0)
+    c.set(Calendar.MINUTE, 0)
+    c.set(Calendar.SECOND, 0)
+    c.set(Calendar.MILLISECOND, 0)
+    return c.timeInMillis
+}
+
+private class Buckets(n: Int) {
+    val spam = IntArray(n)
+    val scam = IntArray(n)
+    val safe = IntArray(n)
+
+    fun add(index: Int, type: String) {
+        when (type.lowercase()) {
+            "spam" -> spam[index]++
+            "scam" -> scam[index]++
+            "safe" -> safe[index]++
+        }
+    }
+
+    fun toBars(labels: List<String>) = labels.mapIndexed { i, l -> BarData(l, spam[i], scam[i], safe[i]) }
+}
+
 private fun calculateBarData(
     identifications: List<IdentificationEntry>,
     mode: GraphViewMode
 ): List<BarData> {
+    val today = startOfToday()
+    val daysAgo = { time: Long -> ((today + DAY - 1 - time) / DAY).toInt() }
     return when (mode) {
         GraphViewMode.DAILY -> {
-            val labels = listOf("12A", "3A", "6A", "9A", "12P", "3P", "6P", "9P")
-            val spamCounts = IntArray(8)
-            val scamCounts = IntArray(8)
-            val safeCounts = IntArray(8)
-
+            val b = Buckets(8)
             val cal = Calendar.getInstance()
-            identifications.forEach { entry ->
-                cal.timeInMillis = entry.time
-                val hour = cal.get(Calendar.HOUR_OF_DAY)
-                val slot = (hour / 3).coerceIn(0, 7)
-                when (entry.type.lowercase()) {
-                    "spam" -> spamCounts[slot]++
-                    "scam" -> scamCounts[slot]++
-                    "safe" -> safeCounts[slot]++
+            identifications.forEach {
+                if (it.time >= today) {
+                    cal.timeInMillis = it.time
+                    b.add((cal.get(Calendar.HOUR_OF_DAY) / 3).coerceIn(0, 7), it.type)
                 }
             }
-
-            labels.mapIndexed { i, label ->
-                BarData(label, spamCounts[i], scamCounts[i], safeCounts[i])
-            }
+            b.toBars(listOf("12A", "3A", "6A", "9A", "12P", "3P", "6P", "9P"))
         }
 
         GraphViewMode.WEEKLY -> {
-            val labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-            val spamCounts = IntArray(7)
-            val scamCounts = IntArray(7)
-            val safeCounts = IntArray(7)
-
-            val cal = Calendar.getInstance()
-            identifications.forEach { entry ->
-                cal.timeInMillis = entry.time
-                val day = cal.get(Calendar.DAY_OF_WEEK)
-                val index = when (day) {
-                    Calendar.MONDAY -> 0
-                    Calendar.TUESDAY -> 1
-                    Calendar.WEDNESDAY -> 2
-                    Calendar.THURSDAY -> 3
-                    Calendar.FRIDAY -> 4
-                    Calendar.SATURDAY -> 5
-                    Calendar.SUNDAY -> 6
-                    else -> 0
-                }
-                when (entry.type.lowercase()) {
-                    "spam" -> spamCounts[index]++
-                    "scam" -> scamCounts[index]++
-                    "safe" -> safeCounts[index]++
-                }
+            val b = Buckets(7)
+            identifications.forEach {
+                val ago = daysAgo(it.time)
+                if (ago in 0..6) b.add(6 - ago, it.type)
             }
-
-            labels.mapIndexed { i, label ->
-                BarData(label, spamCounts[i], scamCounts[i], safeCounts[i])
-            }
+            val fmt = SimpleDateFormat("EEE", Locale.getDefault())
+            b.toBars((0..6).map { i -> fmt.format(Date(today + DAY / 2 - (6 - i) * DAY)) })
         }
 
         GraphViewMode.MONTHLY -> {
-            val labels = listOf("Wk 1", "Wk 2", "Wk 3", "Wk 4")
-            val spamCounts = IntArray(4)
-            val scamCounts = IntArray(4)
-            val safeCounts = IntArray(4)
-
-            val cal = Calendar.getInstance()
-            identifications.forEach { entry ->
-                cal.timeInMillis = entry.time
-                val week = cal.get(Calendar.WEEK_OF_MONTH) - 1
-                val index = week.coerceIn(0, 3)
-                when (entry.type.lowercase()) {
-                    "spam" -> spamCounts[index]++
-                    "scam" -> scamCounts[index]++
-                    "safe" -> safeCounts[index]++
-                }
+            val b = Buckets(4)
+            identifications.forEach {
+                val ago = daysAgo(it.time)
+                if (ago in 0..27) b.add(3 - ago / 7, it.type)
             }
-
-            labels.mapIndexed { i, label ->
-                BarData(label, spamCounts[i], scamCounts[i], safeCounts[i])
-            }
+            b.toBars(listOf("3w ago", "2w ago", "Last wk", "This wk"))
         }
     }
 }
@@ -700,4 +654,12 @@ private fun formatTimeSaved(totalSeconds: Long): String {
         if (minutes > 0 || hours > 0) append("${minutes}m ")
         append("${seconds}s")
     }.trim()
+}
+
+@Preview(showBackground = true)
+@Composable
+fun StatsScreenPreview() {
+    ShieldTheme(dark = false) {
+        StatsScreen()
+    }
 }

@@ -72,7 +72,7 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
         parsed?.let {
             val numStr = "${it.countryCode}${it.nationalNumber}"
             Prefs.addRecentLookup(context, numStr)
-            Reports.recordProfileSearch(context)
+            LookupStats.record(context, numStr)
             onSearch(numStr)
         }
     }

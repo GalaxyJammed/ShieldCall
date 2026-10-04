@@ -48,7 +48,7 @@ fun PreferencesScreen() {
     var showAddDialog by remember { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     page?.let {
-        BlockListPage(it, dao) { page = null }
+        if (it == "allow") AllowListPage { page = null } else BlockListPage(it, dao) { page = null }
         return
     }
 
@@ -107,6 +107,7 @@ fun PreferencesScreen() {
             val nNumbers = blocked.count { it.kind() == "numbers" }
             val nCountries = blocked.count { it.kind() == "countries" }
             val nNames = blocked.count { it.kind() == "names" }
+            val nPrefixes = blocked.count { it.kind() == "prefixes" }
             if (nNumbers > 0) {
                 HorizontalDivider()
                 BlockLink("Blocked Numbers", nNumbers) { page = "numbers" }
@@ -119,6 +120,15 @@ fun PreferencesScreen() {
                 HorizontalDivider()
                 BlockLink("Blocked Names", nNames) { page = "names" }
             }
+            if (nPrefixes > 0) {
+                HorizontalDivider()
+                BlockLink("Blocked Prefixes", nPrefixes) { page = "prefixes" }
+            }
+        }
+        Spacer(Modifier.height(24.dp))
+        Section("Allow list")
+        ShieldCard(Modifier.fillMaxWidth()) {
+            BlockLink("Always allowed numbers", AllowList.keys.size) { page = "allow" }
         }
         Spacer(Modifier.height(24.dp))
         Section("Activity")
@@ -144,12 +154,14 @@ private fun AddToBlocklistDialog(onDismiss: () -> Unit, onAdd: (String, String, 
     var selectedTab by remember { mutableStateOf(0) }
     var numberInput by remember { mutableStateOf("") }
     var nameInput by remember { mutableStateOf("") }
+    var prefixInput by remember { mutableStateOf("") }
     var countryInput by remember { mutableStateOf(countries.first()) }
     var pickingCountry by remember { mutableStateOf(false) }
     val enabled = when (selectedTab) {
         0 -> numberInput.isNotBlank()
         1 -> nameInput.isNotBlank()
-        else -> true
+        2 -> true
+        else -> prefixInput.length >= 3
     }
 
     Dialog(
@@ -160,8 +172,8 @@ private fun AddToBlocklistDialog(onDismiss: () -> Unit, onAdd: (String, String, 
             Column(Modifier.padding(20.dp)) {
                 Text("Add to blocklist", style = MaterialTheme.typography.titleLarge)
                 Spacer(Modifier.height(12.dp))
-                TabRow(selectedTabIndex = selectedTab, containerColor = Color.Transparent) {
-                    listOf("Phone", "Name", "Country").forEachIndexed { i, label ->
+                ScrollableTabRow(selectedTabIndex = selectedTab, containerColor = Color.Transparent, edgePadding = 0.dp) {
+                    listOf("Phone", "Name", "Country", "Prefix").forEachIndexed { i, label ->
                         Tab(
                             selected = selectedTab == i,
                             onClick = { selectedTab = i },
@@ -196,11 +208,25 @@ private fun AddToBlocklistDialog(onDismiss: () -> Unit, onAdd: (String, String, 
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    else -> OutlinedButton(
+                    2 -> OutlinedButton(
                         onClick = { pickingCountry = true },
                         modifier = Modifier.fillMaxWidth().height(56.dp)
                     ) {
                         Text("${countryInput.flag}  ${countryInput.name} (+${countryInput.code})")
+                    }
+                    else -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedTextField(
+                            value = prefixInput,
+                            onValueChange = { prefixInput = it.filter(Char::isDigit).take(15) },
+                            label = { Text("Starts with") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            "Include the country code. 4470 blocks every number starting +44 70.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     }
                 }
                 Spacer(Modifier.height(20.dp))
@@ -213,7 +239,8 @@ private fun AddToBlocklistDialog(onDismiss: () -> Unit, onAdd: (String, String, 
                             when (selectedTab) {
                                 0 -> onAdd(numberInput, nameInput.ifBlank { "+$numberInput" }, "number")
                                 1 -> onAdd(nameInput.lowercase(), nameInput, "name")
-                                else -> onAdd(countryInput.name.lowercase(), countryInput.name, "country")
+                                2 -> onAdd(countryInput.name.lowercase(), countryInput.name, "country")
+                                else -> onAdd(prefixInput, "+$prefixInput…", "prefix")
                             }
                         }
                     ) { Text("Block") }

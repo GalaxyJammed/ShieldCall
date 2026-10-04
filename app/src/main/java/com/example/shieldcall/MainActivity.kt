@@ -54,6 +54,7 @@ class MainActivity : FragmentActivity() {
         Prefs.load(this)
         FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(Prefs.crashReports)
         Favorites.load(this)
+        AllowList.load(this)
         refresh()
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED

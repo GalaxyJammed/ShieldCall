@@ -32,12 +32,6 @@ data class ReviewPage(val reviews: List<Review>, val cursor: DocumentSnapshot?, 
 data class Info(val spam: Long, val scam: Long, val safe: Long, val myVote: String?, val reviews: List<Review>)
 data class ContactInfo(val name: String?, val photo: String?, val location: String? = null)
 
-data class UserAnalytics(
-    val profileViews: Long = 0,
-    val profileSearches: Long = 0,
-    val viewCountries: Map<String, Long> = emptyMap(),
-    val searchCountries: Map<String, Long> = emptyMap()
-)
 data class Flagged(val tail: String, val rid: String, val type: String, val text: String, val author: String, val flags: Long)
 
 object Reports {
@@ -150,6 +144,11 @@ object Reports {
         val uid = uid()
         val doc = db.collection("reports").document(tail)
         val userRef = db.collection("users").document(uid)
+        val hadReview = try {
+            doc.collection("reviews").document(uid).get().await().exists()
+        } catch (e: Exception) {
+            false
+        }
         val batch = db.batch()
         batch.delete(doc.collection("votes").document(uid))
         batch.delete(userRef.collection("votes").document(tail))
@@ -164,6 +163,7 @@ object Reports {
             SetOptions.merge()
         )
         batch.commit().await()
+        if (hadReview) Contribution.addReviews(context, -1)
 
         try {
             val snap = userRef.get().await()
@@ -195,11 +195,15 @@ object Reports {
             "time" to FieldValue.serverTimestamp()
         )
         if (ref.get().await().exists()) ref.update(data).await()
-        else ref.set(data + mapOf("likes" to 0, "flags" to 0)).await()
+        else {
+            ref.set(data + mapOf("likes" to 0, "flags" to 0)).await()
+            Contribution.addReviews(context, 1)
+        }
     }
 
-    suspend fun deleteReview(tail: String) {
+    suspend fun deleteReview(context: Context, tail: String) {
         db.collection("reports").document(tail).collection("reviews").document(uid()).delete().await()
+        Contribution.addReviews(context, -1)
     }
 
     suspend fun like(tail: String, rid: String, on: Boolean) {
@@ -270,51 +274,6 @@ object Reports {
             main.getLong("safe") ?: 0,
             mine,
             emptyList()
-        )
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    suspend fun loadUserAnalytics(): UserAnalytics {
-        val uid = auth.currentUser?.uid ?: return UserAnalytics()
-        return try {
-            val doc = db.collection("users").document(uid).get().await()
-            if (doc.exists()) {
-                val views = doc.getLong("profileViews") ?: 0L
-                val searches = doc.getLong("profileSearches") ?: 0L
-                val rawViews = doc.get("viewCountries") as? Map<String, Any> ?: emptyMap()
-                val viewCountries = rawViews.mapValues { (it.value as? Number)?.toLong() ?: 0L }
-                val rawSearches = doc.get("searchCountries") as? Map<String, Any> ?: emptyMap()
-                val searchCountries = rawSearches.mapValues { (it.value as? Number)?.toLong() ?: 0L }
-                UserAnalytics(views, searches, viewCountries, searchCountries)
-            } else {
-                UserAnalytics()
-            }
-        } catch (e: Exception) {
-            UserAnalytics()
-        }
-    }
-
-    fun recordProfileView(context: Context) {
-        val uid = auth.currentUser?.uid ?: return
-        val countryName = Locale.Builder().setRegion(region(context)).build().displayCountry.ifBlank { "Global" }
-        db.collection("users").document(uid).set(
-            mapOf(
-                "profileViews" to FieldValue.increment(1),
-                "viewCountries" to mapOf(countryName to FieldValue.increment(1))
-            ),
-            SetOptions.merge()
-        )
-    }
-
-    fun recordProfileSearch(context: Context) {
-        val uid = auth.currentUser?.uid ?: return
-        val countryName = Locale.Builder().setRegion(region(context)).build().displayCountry.ifBlank { "Global" }
-        db.collection("users").document(uid).set(
-            mapOf(
-                "profileSearches" to FieldValue.increment(1),
-                "searchCountries" to mapOf(countryName to FieldValue.increment(1))
-            ),
-            SetOptions.merge()
         )
     }
 

@@ -95,9 +95,10 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
         }
     }
 
+    val guarded = rememberGuardedCall { SimChoice.placeNumber(context, it) }
     fun place() {
         val number = parsed?.let { "+${it.countryCode}${it.nationalNumber}" } ?: digits
-        SimChoice.placeNumber(context, number)
+        guarded(number)
     }
 
     var wantVoicemail by remember { mutableStateOf(false) }

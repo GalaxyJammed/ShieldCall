@@ -28,7 +28,7 @@ class BackupData(val blocked: List<BlockedNumber>, val favorites: Set<String>, v
 
 object Backup {
     private val actions = setOf("hangup", "block", "popup")
-    private val types = setOf("number", "name", "country")
+    private val types = setOf("number", "name", "country", "prefix")
     private val flags = listOf("business", "foreign", "unknown", "unsaved", "spamScam")
     private const val LIMIT = 5000
 

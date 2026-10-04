@@ -45,6 +45,7 @@ import kotlinx.coroutines.delay
 import androidx.compose.foundation.lazy.rememberLazyListState
 import com.google.firebase.firestore.DocumentSnapshot
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.VerifiedUser
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -137,13 +138,13 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     val cleanNum = remember(displayNum) { displayNum.filter { it.isDigit() || it == '+' } }
     var showCallDialog by remember { mutableStateOf(false) }
 
+    val guarded = rememberGuardedCall { SimChoice.placeNumber(context, it) }
     val callPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (granted) {
             try {
-                val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$cleanNum"))
-                context.startActivity(intent)
+                guarded(cleanNum)
             } catch (e: Exception) {
                 Log.e("Shield", "Failed to call", e)
                 Toast.makeText(context, "Cannot place call", Toast.LENGTH_SHORT).show()
@@ -181,8 +182,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                         showCallDialog = false
                         if (context.checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
                             try {
-                                val intent = Intent(Intent.ACTION_CALL, Uri.parse("tel:$cleanNum"))
-                                context.startActivity(intent)
+                                guarded(cleanNum)
                             } catch (e: Exception) {
                                 Log.e("Shield", "Failed to call", e)
                                 Toast.makeText(context, "Cannot place call", Toast.LENGTH_SHORT).show()
@@ -265,6 +265,15 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                             Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
                             Text("Add to contacts")
+                        }
+                        val allowed = tail in AllowList.keys
+                        TextButton(
+                            onClick = { if (allowed) AllowList.remove(context, tail) else AllowList.add(context, tail) },
+                            contentPadding = PaddingValues(0.dp)
+                        ) {
+                            Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(if (allowed) "Remove from allow list" else "Always allow this number")
                         }
                     }
                     if (!contactInfo?.location.isNullOrBlank()) {
@@ -377,7 +386,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                                 reviews = r.filter { it.id != rv.id }
                                 scope.launch {
                                     try {
-                                        Reports.deleteReview(tail)
+                                        Reports.deleteReview(context, tail)
                                     } catch (e: Exception) {
                                         Log.e("Shield", e.toString())
                                     }
