@@ -21,7 +21,7 @@ When you sign in with Google and look up a number, vote on it, or write a review
 
 - **Look up community ratings** for a number. The number (country code plus national number) is sent to retrieve its vote counts and reviews. This also happens when a call comes in, if you are signed in.
 - **Store your votes and reviews.** A vote or review is stored with your Firebase account ID. A review also stores the name shown with it: your Google account name, or "Anonymous User" if you choose to stay anonymous in Settings. Other users can see votes counts, reviews, and the name shown on a review. They cannot see your email.
-- **Keep your account data.** Your Firebase user record stores your Google account ID, email, display name and profile photo link, a list of the numbers you identified, and simple usage counts (profile views and searches by country).
+- **Keep your account data.** Your Firebase user record stores your Google account ID, email, display name and profile photo link, a list of the numbers you identified.
 
 Votes and reviews are public to other signed-in users of the app.
 
