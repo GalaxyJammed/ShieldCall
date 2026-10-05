@@ -121,7 +121,7 @@ fun StatsScreen() {
     Column(
         Modifier
             .fillMaxSize()
-            .scrollbar(scroll)
+            .scrollbar(scroll, UiState.bottomInset)
             .verticalScroll(scroll)
             .padding(horizontal = 24.dp)
     ) {

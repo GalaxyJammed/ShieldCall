@@ -182,6 +182,7 @@ class ShieldInCallService : InCallService() {
         }
     }
 
+    @Suppress("DEPRECATION")
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         CallManager.audio(audioState)
     }

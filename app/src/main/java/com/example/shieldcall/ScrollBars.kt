@@ -11,10 +11,11 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun Modifier.scrollbar(state: ScrollState): Modifier {
+fun Modifier.scrollbar(state: ScrollState, bottomInset: Dp = 0.dp): Modifier {
     val color = MaterialTheme.colorScheme.onSurface
     val alpha by animateFloatAsState(if (state.isScrollInProgress) 0.7f else 0.3f, label = "scrollbar")
     return drawWithContent {
@@ -22,8 +23,9 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
         val max = state.maxValue
         if (max > 0 && max != Int.MAX_VALUE) {
             val viewport = size.height
-            val thumb = (viewport * viewport / (viewport + max)).coerceAtLeast(24.dp.toPx())
-            val top = state.value.toFloat() / max * (viewport - thumb)
+            val track = (viewport - bottomInset.toPx()).coerceAtLeast(24.dp.toPx())
+            val thumb = (track * viewport / (viewport + max)).coerceIn(24.dp.toPx(), track)
+            val top = state.value.toFloat() / max * (track - thumb)
             val w = 4.dp.toPx()
             drawRoundRect(
                 color = color.copy(alpha = alpha),
@@ -36,7 +38,7 @@ fun Modifier.scrollbar(state: ScrollState): Modifier {
 }
 
 @Composable
-fun Modifier.scrollbar(state: LazyListState, vertical: Boolean = true): Modifier {
+fun Modifier.scrollbar(state: LazyListState, vertical: Boolean = true, bottomInset: Dp = 0.dp): Modifier {
     val color = MaterialTheme.colorScheme.onSurface
     val alpha by animateFloatAsState(if (state.isScrollInProgress) 0.7f else 0.3f, label = "scrollbar")
     return drawWithContent {
@@ -47,9 +49,10 @@ fun Modifier.scrollbar(state: LazyListState, vertical: Boolean = true): Modifier
             val avg = visible.sumOf { it.size }.toFloat() / visible.size
             val total = avg * info.totalItemsCount
             val viewport = if (vertical) size.height else size.width
+            val track = if (vertical) (viewport - bottomInset.toPx()).coerceAtLeast(24.dp.toPx()) else viewport
             val offset = state.firstVisibleItemIndex * avg + state.firstVisibleItemScrollOffset
-            val thumb = (viewport * viewport / total).coerceIn(24.dp.toPx(), viewport)
-            val pos = (offset / (total - viewport).coerceAtLeast(1f)).coerceIn(0f, 1f) * (viewport - thumb)
+            val thumb = (track * viewport / total).coerceIn(24.dp.toPx(), track)
+            val pos = (offset / (total - viewport).coerceAtLeast(1f)).coerceIn(0f, 1f) * (track - thumb)
             val w = 4.dp.toPx()
             if (vertical) {
                 drawRoundRect(

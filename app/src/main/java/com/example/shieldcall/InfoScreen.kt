@@ -46,6 +46,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import com.google.firebase.firestore.DocumentSnapshot
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Close
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -77,6 +80,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     var cursor by remember { mutableStateOf<DocumentSnapshot?>(null) }
     var more by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
+    var pendingVote by remember { mutableStateOf<String?>(null) }
 
     suspend fun fetch(reset: Boolean) {
         val page = Reports.loadReviews(tail, sort, if (reset) null else cursor)
@@ -214,6 +218,17 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     val listState = rememberLazyListState()
     Box(Modifier.fillMaxSize()) {
         if (adding) NewContactDialog(displayNum) { adding = false }
+        pendingVote?.let { type ->
+            TagDialog(
+                type = type,
+                onPick = { tag ->
+                    pendingVote = null
+                    val current = info
+                    act { Reports.report(context, tail, type, current?.myVote, tag, current?.myTag) }
+                },
+                onDismiss = { pendingVote = null }
+            )
+        }
         LazyColumn(
             Modifier.fillMaxSize().scrollbar(listState).padding(horizontal = 24.dp),
             state = listState,
@@ -235,56 +250,59 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.align(Alignment.Center)
                         )
+                        IconButton(
+                            onClick = { shareSummary(context, displayNum, info) },
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = "Share")
+                        }
                     }
                 }
             }
             item { Spacer(Modifier.height(4.dp)) }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        text = contactInfo?.name?.takeIf { it.isNotBlank() } ?: "Unknown Number",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = displayNum,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.combinedClickable(
-                            onClick = { showCallDialog = true },
-                            onLongClick = {
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("Phone Number", displayNum))
-                                Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                ShieldCard(Modifier.fillMaxWidth()) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        CallAvatar(photoUri = contactInfo?.photo, size = 56.dp)
+                        Spacer(Modifier.width(16.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = contactInfo?.name?.takeIf { it.isNotBlank() } ?: "Unknown Number",
+                                style = MaterialTheme.typography.headlineSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = displayNum,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.combinedClickable(
+                                    onClick = { showCallDialog = true },
+                                    onLongClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Phone Number", displayNum))
+                                        Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            )
+                            if (!contactInfo?.location.isNullOrBlank()) {
+                                Text(
+                                    text = contactInfo!!.location!!,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                        )
-                    )
-
-                    if (contactInfo?.name.isNullOrBlank()) {
-                        TextButton(onClick = { adding = true }, contentPadding = PaddingValues(0.dp)) {
-                            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Add to contacts")
+                            if (contactInfo?.name.isNullOrBlank()) {
+                                TextButton(onClick = { adding = true }, contentPadding = PaddingValues(0.dp)) {
+                                    Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Add to contacts")
+                                }
+                            }
                         }
-                        val allowed = tail in AllowList.keys
-                        TextButton(
-                            onClick = { if (allowed) AllowList.remove(context, tail) else AllowList.add(context, tail) },
-                            contentPadding = PaddingValues(0.dp)
-                        ) {
-                            Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(if (allowed) "Remove from allow list" else "Always allow this number")
-                        }
-                    }
-                    if (!contactInfo?.location.isNullOrBlank()) {
-                        Text(
-                            text = contactInfo!!.location!!,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
             }
+            item { NoteCard(tail) }
             if (failed) item {
                 Text("Couldn't reach the server. Check your connection.", color = MaterialTheme.colorScheme.error)
             }
@@ -297,18 +315,23 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                                 onClick = { scope.launch { if (Auth.signIn(context)) signed = true } },
                                 modifier = Modifier.fillMaxWidth()
                             ) { Text("Sign in with Google") }
+                            HorizontalDivider()
+                            AllowToggleRow(tail)
                         }
                     }
                 }
             } else if (i == null) {
                 if (!failed) item { CircularProgressIndicator() }
             } else {
-                item { TrustCard(i) }
+                item { TrustCard(i, tail) }
                 item {
                     VoteRow(
                         mine = i.myVote,
-                        onVote = { type -> act { Reports.report(context, tail, type, i.myVote) } },
-                        onRemove = { act { Reports.removeVote(context, tail, i.myVote!!); reviews = null } }
+                        onVote = { type ->
+                            if (type == "safe") act { Reports.report(context, tail, type, i.myVote, null, i.myTag) }
+                            else pendingVote = type
+                        },
+                        onRemove = { act { Reports.removeVote(context, tail, i.myVote!!, i.myTag); reviews = null } }
                     )
                 }
                 item {
@@ -438,7 +461,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun TrustCard(i: Info) {
+private fun TrustCard(i: Info, tail: String) {
     val total = i.spam + i.scam + i.safe
     ShieldCard(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -453,11 +476,38 @@ private fun TrustCard(i: Info) {
                     color = if (score >= 60) Green else if (score >= 30) Amber else Red
                 )
                 Text("Based on $total votes")
+                val top = i.tags.entries.filter { it.value > 0 }.sortedByDescending { it.value }.take(3)
+                if (top.isNotEmpty()) {
+                    Text(
+                        "Most reported as: " + top.joinToString(", ") { "${Tags.label(it.key)} (${it.value})" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Bar("Safe", i.safe, total, Green)
                 Bar("Spam", i.spam, total, Amber)
                 Bar("Scam", i.scam, total, Red)
             }
+            HorizontalDivider()
+            AllowToggleRow(tail)
         }
+    }
+}
+
+@Composable
+private fun AllowToggleRow(tail: String) {
+    val context = LocalContext.current
+    val allowed = tail in AllowList.keys
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Icon(Icons.Default.VerifiedUser, contentDescription = null, modifier = Modifier.padding(end = 12.dp).size(20.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Always allow this number", style = MaterialTheme.typography.bodyLarge)
+            Text("Its calls are never blocked", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(
+            checked = allowed,
+            onCheckedChange = { if (it) AllowList.add(context, tail) else AllowList.remove(context, tail) }
+        )
     }
 }
 
@@ -482,26 +532,35 @@ private fun VoteRow(mine: String?, onVote: (String) -> Unit, onRemove: () -> Uni
         Text(if (mine != null) "Your vote: ${mine.uppercase()}" else "How was your experience with this number?")
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf("safe", "spam", "scam").forEach { t ->
-                Button(
-                    onClick = { onVote(t) },
-                    enabled = mine != t,
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colorOf(t),
-                        disabledContainerColor = colorOf(t),
-                        disabledContentColor = Color.White
-                    ),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        if (mine == t) "✓ ${t.replaceFirstChar { it.uppercase() }}" else t.replaceFirstChar { it.uppercase() },
-                        maxLines = 1,
-                        softWrap = false
-                    )
+                Box(Modifier.weight(1f)) {
+                    Button(
+                        onClick = { onVote(t) },
+                        enabled = mine != t,
+                        contentPadding = if (mine == t) PaddingValues(start = 4.dp, end = 28.dp) else PaddingValues(horizontal = 4.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = colorOf(t),
+                            disabledContainerColor = colorOf(t),
+                            disabledContentColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (mine == t) "✓ ${t.replaceFirstChar { it.uppercase() }}" else t.replaceFirstChar { it.uppercase() },
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                    }
+                    if (mine == t) {
+                        Box(
+                            Modifier.align(Alignment.CenterEnd).size(36.dp).clickable(onClick = onRemove),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Close, contentDescription = "Remove my vote", tint = Color.White, modifier = Modifier.size(14.dp))
+                        }
+                    }
                 }
             }
         }
-        if (mine != null) TextButton(onClick = onRemove) { Text("Remove my vote") }
     }
 }
 

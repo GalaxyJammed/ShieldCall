@@ -12,7 +12,7 @@ import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -163,7 +163,7 @@ fun FakeCallScreen(name: String, number: String, onFinish: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     ToggleButton("Mute", if (muted) Icons.Default.MicOff else Icons.Default.Mic, muted) { muted = !muted }
                     ToggleButton("Keypad", Icons.Default.Dialpad, keypad) { keypad = !keypad }
-                    ToggleButton("Speaker", Icons.Filled.VolumeUp, speaker) { speaker = !speaker }
+                    ToggleButton("Speaker", Icons.AutoMirrored.Filled.VolumeUp, speaker) { speaker = !speaker }
                     ToggleButton("Hold", if (hold) Icons.Default.PlayArrow else Icons.Default.Pause, hold) { hold = !hold }
                 }
                 LabeledButton("End", Icons.Default.CallEnd, FakeRed) { phase = 2 }

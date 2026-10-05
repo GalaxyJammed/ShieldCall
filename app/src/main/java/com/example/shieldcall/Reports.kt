@@ -29,13 +29,20 @@ data class Review(
     val liked: Boolean = false
 )
 data class ReviewPage(val reviews: List<Review>, val cursor: DocumentSnapshot?, val more: Boolean)
-data class Info(val spam: Long, val scam: Long, val safe: Long, val myVote: String?, val reviews: List<Review>)
+data class Info(
+    val spam: Long,
+    val scam: Long,
+    val safe: Long,
+    val myVote: String?,
+    val reviews: List<Review>,
+    val myTag: String? = null,
+    val tags: Map<String, Long> = emptyMap()
+)
 data class ContactInfo(val name: String?, val photo: String?, val location: String? = null)
 
 data class Flagged(val tail: String, val rid: String, val type: String, val text: String, val author: String, val flags: Long)
 
 object Reports {
-
     suspend fun isAdmin(): Boolean = try {
         db.collection("admins").document(uid()).get().await().exists()
     } catch (e: Exception) {
@@ -105,24 +112,26 @@ object Reports {
     private fun delta(k: String, new: String?, old: String?): Long =
         (if (new == k) 1L else 0L) - (if (old == k) 1L else 0L)
 
-    suspend fun report(context: Context, tail: String, type: String, previous: String? = null) {
+    suspend fun report(context: Context, tail: String, type: String, previous: String? = null, tag: String? = null, previousTag: String? = null) {
         if (previous == type) return
         val uid = uid()
         val currentTime = System.currentTimeMillis()
         val doc = db.collection("reports").document(tail)
         val userDocRef = db.collection("users").document(uid)
-        val batch = db.batch()
-        batch.set(doc.collection("votes").document(uid), mapOf("type" to type, "time" to currentTime, "appVersion" to versionCode(context)))
-        batch.set(userDocRef.collection("votes").document(tail), mapOf("number" to tail, "type" to type, "time" to currentTime))
-        batch.set(
-            doc,
-            mapOf(
-                "spam" to FieldValue.increment(delta("spam", type, previous)),
-                "scam" to FieldValue.increment(delta("scam", type, previous)),
-                "safe" to FieldValue.increment(delta("safe", type, previous))
-            ),
-            SetOptions.merge()
+        val usedTag = tag.takeIf { type != "safe" }
+        val voteData = mutableMapOf<String, Any>("type" to type, "time" to currentTime, "appVersion" to versionCode(context))
+        if (usedTag != null) voteData["tag"] = usedTag
+        val counters = mutableMapOf<String, Any>(
+            "spam" to FieldValue.increment(delta("spam", type, previous)),
+            "scam" to FieldValue.increment(delta("scam", type, previous)),
+            "safe" to FieldValue.increment(delta("safe", type, previous))
         )
+        val tagChanges = tagDeltas(usedTag, if (previous != null) previousTag else null)
+        if (tagChanges.isNotEmpty()) counters["tags"] = tagChanges
+        val batch = db.batch()
+        batch.set(doc.collection("votes").document(uid), voteData)
+        batch.set(userDocRef.collection("votes").document(tail), mapOf("number" to tail, "type" to type, "time" to currentTime))
+        batch.set(doc, counters, SetOptions.merge())
         batch.commit().await()
 
         try {
@@ -140,7 +149,7 @@ object Reports {
         }
     }
 
-    suspend fun removeVote(context: Context, tail: String, previous: String) {
+    suspend fun removeVote(context: Context, tail: String, previous: String, previousTag: String? = null) {
         val uid = uid()
         val doc = db.collection("reports").document(tail)
         val userRef = db.collection("users").document(uid)
@@ -153,15 +162,14 @@ object Reports {
         batch.delete(doc.collection("votes").document(uid))
         batch.delete(userRef.collection("votes").document(tail))
         batch.delete(doc.collection("reviews").document(uid))
-        batch.set(
-            doc,
-            mapOf(
-                "spam" to FieldValue.increment(delta("spam", null, previous)),
-                "scam" to FieldValue.increment(delta("scam", null, previous)),
-                "safe" to FieldValue.increment(delta("safe", null, previous))
-            ),
-            SetOptions.merge()
+        val counters = mutableMapOf<String, Any>(
+            "spam" to FieldValue.increment(delta("spam", null, previous)),
+            "scam" to FieldValue.increment(delta("scam", null, previous)),
+            "safe" to FieldValue.increment(delta("safe", null, previous))
         )
+        val tagChanges = tagDeltas(null, previousTag)
+        if (tagChanges.isNotEmpty()) counters["tags"] = tagChanges
+        batch.set(doc, counters, SetOptions.merge())
         batch.commit().await()
         if (hadReview) Contribution.addReviews(context, -1)
 
@@ -262,18 +270,22 @@ object Reports {
         return ReviewPage(reviews, docs.lastOrNull(), docs.size == 10)
     }
 
+    @Suppress("UNCHECKED_CAST")
     suspend fun load(tail: String): Info {
         if (tail.isBlank()) return Info(0, 0, 0, null, emptyList())
         val uid = uid()
         val doc = db.collection("reports").document(tail)
         val main = doc.get().await()
-        val mine = if (main.exists()) doc.collection("votes").document(uid).get().await().getString("type") else null
+        val mine = if (main.exists()) doc.collection("votes").document(uid).get().await() else null
+        val tags = (main.get("tags") as? Map<String, Any>).orEmpty().mapValues { (it.value as? Number)?.toLong() ?: 0L }
         return Info(
             main.getLong("spam") ?: 0,
             main.getLong("scam") ?: 0,
             main.getLong("safe") ?: 0,
-            mine,
-            emptyList()
+            mine?.getString("type"),
+            emptyList(),
+            mine?.getString("tag"),
+            tags
         )
     }
 
@@ -532,5 +544,13 @@ object Reports {
             auth.signOut()
             false
         }
+    }
+    private fun tagDeltas(new: String?, old: String?): Map<String, Any> {
+        val out = HashMap<String, Any>()
+        for (k in setOfNotNull(new, old)) {
+            val d = (if (new == k) 1L else 0L) - (if (old == k) 1L else 0L)
+            if (d != 0L) out[k] = FieldValue.increment(d)
+        }
+        return out
     }
 }

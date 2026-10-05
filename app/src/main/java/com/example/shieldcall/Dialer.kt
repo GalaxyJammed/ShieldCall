@@ -34,6 +34,8 @@ import androidx.compose.runtime.setValue
 import android.telephony.TelephonyManager
 import android.telecom.PhoneAccount
 import androidx.compose.material.icons.filled.Voicemail
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 private val Green = Color(0xFF2E7D32)
 
@@ -43,6 +45,8 @@ object DialRequest {
 
 object UiState {
     var hideBar by mutableStateOf(false)
+    var barHeight by mutableStateOf(0.dp)
+    val bottomInset: Dp get() = if (hideBar) 0.dp else barHeight
 }
 
 object LookupRequest {

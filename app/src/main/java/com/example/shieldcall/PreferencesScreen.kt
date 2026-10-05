@@ -53,7 +53,7 @@ fun PreferencesScreen() {
     }
 
     val scroll = rememberScrollState()
-    Column(Modifier.fillMaxSize().scrollbar(scroll).verticalScroll(scroll).padding(horizontal = 24.dp)) {
+    Column(Modifier.fillMaxSize().scrollbar(scroll, UiState.bottomInset).verticalScroll(scroll).padding(horizontal = 24.dp)) {
         ScreenTitle("Security")
         Spacer(Modifier.height(16.dp))
         Section("Block calls from")
@@ -126,7 +126,7 @@ fun PreferencesScreen() {
             }
         }
         Spacer(Modifier.height(24.dp))
-        Section("Allow list")
+        Section("Allowlist")
         ShieldCard(Modifier.fillMaxWidth()) {
             BlockLink("Always allowed numbers", AllowList.keys.size) { page = "allow" }
         }

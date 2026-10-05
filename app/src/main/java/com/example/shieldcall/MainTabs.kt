@@ -38,9 +38,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 
 @Composable
 fun MainTabs(tab: Int, onTab: (Int) -> Unit, onNumber: (String) -> Unit, onSettings: () -> Unit) {
+    val density = LocalDensity.current
     Box(Modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = tab,
@@ -64,6 +67,7 @@ fun MainTabs(tab: Int, onTab: (Int) -> Unit, onNumber: (String) -> Unit, onSetti
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
+                    .onSizeChanged { UiState.barHeight = with(density) { it.height.toDp() } }
             ) {
                 BottomBar(tab, onTab)
             }

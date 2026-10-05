@@ -19,6 +19,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 object AllowList {
     var keys by mutableStateOf<Set<String>>(emptySet())
@@ -78,13 +81,7 @@ fun AllowListPage(onBack: () -> Unit) {
             if (items.isEmpty()) Text("No numbers yet.", Modifier.padding(16.dp))
             items.forEachIndexed { i, k ->
                 if (i > 0) HorizontalDivider()
-                Row(
-                    Modifier.padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("+$k", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    TextButton(onClick = { AllowList.remove(context, k) }) { Text("Remove") }
-                }
+                AllowRow(k) { AllowList.remove(context, k) }
             }
         }
         Spacer(Modifier.height(24.dp))
@@ -125,5 +122,34 @@ private fun AllowAddDialog(onDismiss: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AllowRow(key: String, onRemove: () -> Unit) {
+    val context = LocalContext.current
+    val contact by produceState(ContactInfo(null, null, null), key, ContactsVersion.n) {
+        value = withContext(Dispatchers.IO) { Reports.loadContactInfo(context, key) }
+    }
+    Row(
+        Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        CallAvatar(photoUri = contact.photo, size = 44.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                contact.name?.takeIf { it.isNotBlank() } ?: "Unknown number",
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                "+$key",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        TextButton(onClick = onRemove) { Text("Remove") }
     }
 }

@@ -38,6 +38,7 @@ import kotlinx.coroutines.withContext
 import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.filled.Person
 
 data class Country(val region: String, val name: String, val code: Int) {
     val flag: String
@@ -80,7 +81,7 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
     val recents = Prefs.recentLookups
 
     val scroll = rememberScrollState()
-    Column(Modifier.fillMaxSize().scrollbar(scroll).verticalScroll(scroll).padding(horizontal = 24.dp)) {
+    Column(Modifier.fillMaxSize().scrollbar(scroll, UiState.bottomInset).verticalScroll(scroll).padding(horizontal = 24.dp)) {
         UpdateCard()
         if (Update.latest != null) Spacer(Modifier.height(16.dp))
         ShieldCard(Modifier.fillMaxWidth()) {
@@ -230,11 +231,20 @@ private fun Avatar(name: String, photo: String?) {
             shape.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                name.firstOrNull()?.uppercase() ?: "?",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
+            if (name.isBlank()) {
+                Icon(
+                    Icons.Default.Person,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Text(
+                    name.first().uppercase(),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

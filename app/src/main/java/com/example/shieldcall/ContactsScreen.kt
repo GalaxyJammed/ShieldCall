@@ -225,7 +225,11 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
                     else -> "No favorites yet. Tap the star next to a contact to add one."
                 }
             )
-            else -> LazyColumn(Modifier.scrollbar(listState), state = listState, contentPadding = PaddingValues(bottom = 96.dp)) {
+            else -> LazyColumn(
+                Modifier.scrollbar(listState, bottomInset = UiState.bottomInset),
+                state = listState,
+                contentPadding = PaddingValues(bottom = UiState.bottomInset)
+            ) {
                 items(shown) { c ->
                     val isBlocked = c.key in blockedKeys
                     Row(

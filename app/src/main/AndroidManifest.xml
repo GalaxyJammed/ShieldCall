@@ -25,20 +25,11 @@
 
         <activity
             android:name=".MainActivity"
-            android:exported="true">
-            android:launchMode="singleTop"
+            android:exported="true"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.DIAL"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.DIAL"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <data android:scheme="tel"/>
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.DIAL"/>
@@ -58,6 +49,12 @@
                 <action android:name="android.intent.action.PROCESS_TEXT"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:mimeType="text/plain"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="tel"/>
             </intent-filter>
         </activity>
 
@@ -79,10 +76,12 @@
             android:name=".ShieldInCallService"
             android:exported="true"
             android:permission="android.permission.BIND_INCALL_SERVICE">
-            <meta-data android:name="android.telecom.IN_CALL_SERVICE_UI" android:value="true"/>
             <intent-filter>
                 <action android:name="android.telecom.InCallService"/>
             </intent-filter>
+            <meta-data
+                android:name="android.telecom.IN_CALL_SERVICE_UI"
+                android:value="true" />
         </service>
 
         <service
@@ -92,18 +91,6 @@
             <intent-filter>
                 <action android:name="android.telecom.CallScreeningService"/>
             </intent-filter>
-        </service>
-
-        <service
-            android:name=".ShieldInCallService"
-            android:permission="android.permission.BIND_INCALL_SERVICE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.telecom.InCallService"/>
-            </intent-filter>
-            <meta-data
-                android:name="android.telecom.IN_CALL_SERVICE_UI"
-                android:value="true" />
         </service>
 
         <service android:name=".OverlayService" android:exported="false"/>
