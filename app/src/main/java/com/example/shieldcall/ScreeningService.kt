@@ -10,6 +10,10 @@ import android.telecom.TelecomManager
 import com.google.i18n.phonenumbers.PhoneNumberUtil
 import com.google.i18n.phonenumbers.PhoneNumberUtil.PhoneNumberType
 import java.util.Locale
+import androidx.glance.appwidget.updateAll
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class ScreeningService : CallScreeningService() {
 
@@ -74,6 +78,7 @@ class ScreeningService : CallScreeningService() {
                 else -> "Rule"
             }
             dao.addHangup(HangupEntry(number = key ?: number, time = System.currentTimeMillis(), reason = reason))
+            CoroutineScope(Dispatchers.IO).launch { ShieldWidget().updateAll(this@ScreeningService) }
             respondToCall(
                 details,
                 CallResponse.Builder().setDisallowCall(true).setRejectCall(true).setSkipNotification(true).build()

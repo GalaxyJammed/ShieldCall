@@ -16,8 +16,8 @@ android {
         applicationId = "com.example.shieldcall"
         minSdk = 29
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.9.0"
+        versionCode = 3
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -71,4 +71,5 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("androidx.biometric:biometric:1.1.0")
     implementation("com.google.firebase:firebase-crashlytics")
+    implementation("androidx.glance:glance-appwidget:1.2.0")
 }

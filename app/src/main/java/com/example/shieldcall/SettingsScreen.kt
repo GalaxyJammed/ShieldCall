@@ -52,6 +52,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.material.icons.filled.BugReport
+import android.net.Uri
 
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
@@ -75,6 +76,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     val userEmail = remember(googleSignedIn) { Reports.userEmail() }
     val userPhotoUrl = remember(googleSignedIn) { Reports.userPhotoUrl() }
     val userDisplayName = remember(googleSignedIn) { Reports.userDisplayName() }
+    var showNotes by remember { mutableStateOf(false) }
 
     var isAdmin by remember { mutableStateOf(false) }
     LaunchedEffect(googleSignedIn) { isAdmin = googleSignedIn && Reports.isAdmin() }
@@ -347,14 +349,27 @@ fun SettingsScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Section("About")
         ShieldCard(Modifier.fillMaxWidth()) {
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.padding(end = 16.dp))
-                Column {
-                    Text("About ShieldCall", style = MaterialTheme.typography.titleMedium)
-                    Text("Version ${Update.current(context)}", style = MaterialTheme.typography.bodySmall)
+            Column {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.padding(end = 16.dp))
+                    Column {
+                        Text("About ShieldCall", style = MaterialTheme.typography.titleMedium)
+                        Text("Version ${Update.current(context)}", style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                HorizontalDivider()
+                BlockLink("What's new", null) { showNotes = true }
+                HorizontalDivider()
+                BlockLink("Privacy policy", null) {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Links.PRIVACY)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }
+                HorizontalDivider()
+                BlockLink("Open source licenses", null) {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Links.LICENSES)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
                 }
             }
         }
+        if (showNotes) WhatsNewDialog(all = true) { showNotes = false }
 
         Spacer(Modifier.height(32.dp))
     }

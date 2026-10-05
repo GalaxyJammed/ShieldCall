@@ -59,26 +59,13 @@ class MainActivity : FragmentActivity() {
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        if (savedInstanceState == null) handle(intent)
+
+        handleIntent(intent)
+
         setContent {
             ShieldTheme(Prefs.dark) {
                 Surface(Modifier.fillMaxSize()) {
                     Box(Modifier.safeDrawingPadding()) {
-                        val shared = when (intent?.action) {
-                            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
-                            Intent.ACTION_PROCESS_TEXT -> intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
-                            else -> null
-                        }
-                        if (shared != null) {
-                            intent?.action = Intent.ACTION_MAIN
-                            val found = Reports.firstNumber(shared, Reports.region(this@MainActivity))
-                            if (found != null) {
-                                Prefs.addRecentLookup(this@MainActivity, found)
-                                LookupRequest.number = found
-                            } else {
-                                Toast.makeText(this@MainActivity, "No phone number found", Toast.LENGTH_SHORT).show()
-                            }
-                        }
                         var isUnlocked by rememberSaveable { mutableStateOf(false) }
                         val locked = (Prefs.fingerprint || Prefs.pinLock) && !isUnlocked
                         if (locked) {
@@ -86,6 +73,11 @@ class MainActivity : FragmentActivity() {
                         } else {
                             LaunchedEffect(Unit) { Update.check(this@MainActivity) }
                             Root(perms, ::requestPhone, ::requestOverlay, ::requestRole)
+                            var showNew by remember { mutableStateOf(WhatsNew.shouldShow(this@MainActivity)) }
+                            if (showNew) WhatsNewDialog(all = false) {
+                                WhatsNew.markSeen(this@MainActivity)
+                                showNew = false
+                            }
                         }
                     }
                 }
@@ -123,26 +115,70 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun handle(intent: Intent?) {
-        if (intent?.getBooleanExtra("voicemail", false) == true) {
-            intent.removeExtra("voicemail")
-            getSystemService(NotificationManager::class.java).cancel(3)
-            if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-                getSystemService(TelecomManager::class.java)
-                    .placeCall(Uri.fromParts(PhoneAccount.SCHEME_VOICEMAIL, "", null), null)
+    private fun handleIntent(intent: Intent?) {
+        if (intent == null) return
+        val action = intent.action
+
+        when (action) {
+            WidgetActions.LOOKUP -> {
+                HomeRequest.go = true
+                intent.action = Intent.ACTION_MAIN
             }
-            return
+            WidgetActions.DIAL -> {
+                DialRequest.number = ""
+                intent.action = Intent.ACTION_MAIN
+            }
+            Intent.ACTION_SEND -> {
+                val shared = intent.getStringExtra(Intent.EXTRA_TEXT)
+                processSharedText(shared)
+                intent.action = Intent.ACTION_MAIN
+            }
+            Intent.ACTION_PROCESS_TEXT -> {
+                val shared = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
+                processSharedText(shared)
+                intent.action = Intent.ACTION_MAIN
+            }
+            else -> {
+                if (intent.getBooleanExtra("voicemail", false)) {
+                    intent.removeExtra("voicemail")
+                    getSystemService(NotificationManager::class.java).cancel(3)
+                    if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+                        getSystemService(TelecomManager::class.java)
+                            .placeCall(Uri.fromParts(PhoneAccount.SCHEME_VOICEMAIL, "", null), null)
+                    }
+                    return
+                }
+                val dialNumber = intent.getStringExtra("dial")
+                if (dialNumber != null) {
+                    DialRequest.number = dialNumber
+                    intent.removeExtra("dial")
+                    intent.getStringExtra("tag")?.let { getSystemService(NotificationManager::class.java).cancel(it, 2) }
+                    return
+                }
+                if ((action == Intent.ACTION_DIAL || action == Intent.ACTION_VIEW) && intent.data?.scheme == "tel") {
+                    val telNumber = intent.data?.schemeSpecificPart ?: ""
+                    DialRequest.number = telNumber
+                }
+            }
         }
-        val number = intent?.getStringExtra("dial") ?: return
-        DialRequest.number = number
-        intent.removeExtra("dial")
-        intent.getStringExtra("tag")?.let { getSystemService(NotificationManager::class.java).cancel(it, 2) }
+    }
+
+    private fun processSharedText(shared: String?) {
+        if (shared != null) {
+            val found = Reports.firstNumber(shared, Reports.region(this))
+            if (found != null) {
+                Prefs.addRecentLookup(this, found)
+                LookupRequest.number = found
+            } else {
+                Toast.makeText(this, "No phone number found", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handle(intent)
+        handleIntent(intent)
     }
 }
 
@@ -158,6 +194,15 @@ fun Root(perms: Perms, onPhone: () -> Unit, onOverlay: () -> Unit, onRole: () ->
             tab = 0
             number = null
             settings = false
+        }
+    }
+    val home = HomeRequest.go
+    LaunchedEffect(home) {
+        if (home) {
+            tab = 0
+            number = null
+            settings = false
+            HomeRequest.go = false
         }
     }
     val lookup = LookupRequest.number

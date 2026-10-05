@@ -43,6 +43,10 @@ object DialRequest {
     var number by mutableStateOf<String?>(null)
 }
 
+object HomeRequest {
+    var go by mutableStateOf(false)
+}
+
 object UiState {
     var hideBar by mutableStateOf(false)
     var barHeight by mutableStateOf(0.dp)
@@ -59,12 +63,21 @@ fun LookupWithDialer(onNumber: (String) -> Unit, onSettings: () -> Unit) {
     var initial by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(dialing) { UiState.hideBar = dialing }
     DisposableEffect(Unit) { onDispose { UiState.hideBar = false } }
+
     val request = DialRequest.number
     LaunchedEffect(request) {
         if (request != null) {
             initial = request
             dialing = true
             DialRequest.number = null
+        }
+    }
+    val home = HomeRequest.go
+    LaunchedEffect(home) {
+        if (home) {
+            dialing = false
+            initial = ""
+            HomeRequest.go = false
         }
     }
     if (dialing) {
