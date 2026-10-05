@@ -34,6 +34,7 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Can be switched off at any time with the **Automatic call lookup** setting (disabled when having full-screen calls enabled)
 - **Decline & Message** or send **Voicemails** through the dialer incase you wish to respond without calling
 - Notifications on missed calls that show the "Safety Ranking" of a missed call along with a "Call Back" button
+- Immediately warns you on Calls/Missed Calls from foreign countries for callback scams
 - Supports multiple calls (Decline, Hold & Accept, End current call & Accept)
 - Supports dual-SIM allowing you to call a number from either SIM you have
 - Supports Speaker, Headset and any other bluetooth device that connects for input/output audio
@@ -57,19 +58,20 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Add any contact immediately through the app (syncs with your Google Account and the default android contacts app)
 
 ### 🛡️ Smart Blocking Preferences
-- Block calls from **Spam & scam**, **Businesses**, **Other countries**, **Unknown numbers** or **Unsaved numbers**
+- Block calls from **Spam & scam**, **Businesses**, **Other countries**, **Unknown numbers**, **Unsaved numbers** or **Specific Starting Prefixes**
 - Choose what happens when a call matches:
   - **Hang up immediately**
   - **Block the number** and add it to your blocked list
 - Block every unsaved contact depending on the time of day through 'Quiet Hours'
 - Saved contacts are never caught by the category rules
 - Unblock any contact whenever you want in the click of a button
+- Whitelist any number you wish from specific areas incase you blacklisted that entire country/starting prefix
 
 ### 📊 Stats
 - Shows how many calls you identified as Spam,Scam,Safe
 - A visual daily/weekly/monthly graph
-- How many and which countries looked/searched for your number inside of the app
-- How many seconds you saved from instantly hanging up on spam/scam calls
+- Your own activity (Votes,Reviews,Lookups)
+- How many estimated seconds you saved from instantly hanging up on spam/scam calls
 
 ### 🔒 PIN / Fingerprint Lock
 - Protect the app with a **PIN** or your **fingerprint**
