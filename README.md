@@ -43,12 +43,17 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Look up any phone number with a searchable **country code picker**
 - Numbers are validated for the selected country, so typos and impossible numbers are caught before you search
 - See the number's **trust score** and how many people voted it Safe, Spam or Scam along with reviews
+- Share the number's trust score with other people directly from the "Share Icon"
+- Add private notes to each number that are only visible to you
+- Whitelist numbers you look-up so they can call you regardless of your block settings
+- Add unknown numbers to your contacts with a single button press
 
 ### ⭐ Community Votes and Reviews
 - Vote a number as **Safe**, **Spam** or **Scam** and add a short written review about your experience
 - One vote per Google account per number, so a single person can't flood a number with reviews
 - Reviews are only loaded when you tap **Show reviews**, which keeps the app fast and light
 - Vote anonymously or using your Google Account
+- Add tags to numbers you know are Spam,Scam that show up in the number's trust score
 - Like other reviews and filter by **Newest/Most Liked** reviews for ease or report ones you think were done in bad faith
 
 ### 👥 Contacts and Recent Calls
