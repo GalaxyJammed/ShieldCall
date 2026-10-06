@@ -38,9 +38,11 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Supports multiple calls (Decline, Hold & Accept, End current call & Accept)
 - Supports dual-SIM allowing you to call a number from either SIM you have
 - Supports Speaker, Headset and any other bluetooth device that connects for input/output audio
+- On-going call notification so you can always switch back to the dialer if you ever leave the app whilst in a call along with buttons to control the dialer just from the notification
+- Screen instantly dims when close to your face so you never accidentally touch a button in the dialer
 
 ### 🔎 Number Lookup
-- Look up any phone number with a searchable **country code picker**
+- Look up any phone number with a searchable **country code picker** that supports clipboard so you can instantly add a number
 - Numbers are validated for the selected country, so typos and impossible numbers are caught before you search
 - See the number's **trust score** and how many people voted it Safe, Spam or Scam along with reviews
 - Share the number's trust score with other people directly from the "Share Icon"
@@ -77,6 +79,7 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - A visual daily/weekly/monthly graph
 - Your own activity (Votes,Reviews,Lookups)
 - How many estimated seconds you saved from instantly hanging up on spam/scam calls
+- Insights on Blocked Calls (Busiest time, Country and amount)
 
 ### 🔒 PIN / Fingerprint Lock
 - Protect the app with a **PIN** or your **fingerprint**
@@ -87,7 +90,9 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Smooth slide animations between screens and a bottom bar that highlights the screen you're on
 
 ### 📦 Widgets
-- Widget that shows your amount of blocks in the week. Quick Lookup and Dial buttons straight from your home screen
+- Widget that shows that gives you shortcuts to: **Number Lookup, Dial, Recent Calls, Contacts**
+- Widget that shows Stats such as: **Identified Calls** (Spam,Scam, Safe) and **Your Activity** (Votes, Reviews, Lookups)
+- Both Widgets have previews before adding them to the home screen
 
 ### 🚀 More to Come
 - ShieldCall is a work in progress and new features are on the way.
@@ -137,7 +142,8 @@ Yes. When a call matches your rules or your blocked list, ShieldCall rejects it 
 ShieldCall requires Android 10 (API level 29) or higher.
 
 ## Bug Reports/Suggestions
-- Feel free to report bugs or suggestions by opening an [issue](https://github.com/galaxyjammed/ShieldCall/issues) or [discussion](https://github.com/galaxyjammed/ShieldCall/discussions) thread!
+- Feel free to report bugs or give suggestions/feedback by opening an [issue](https://github.com/galaxyjammed/ShieldCall/issues) or [discussion](https://github.com/galaxyjammed/ShieldCall/discussions) thread!
+- You can also report bugs or give suggestions/feedback in the app itself through "Settings" -> "Contact Us"
 
 ## 📄 License
 
