@@ -144,8 +144,11 @@ interface SpamDao {
     @Query("SELECT COUNT(*) FROM calls WHERE number = :number AND status = 'Missed' AND time > :since")
     fun recentMissed(number: String, since: Long): Int
 
-    @Query("SELECT COUNT(*) FROM hangups WHERE time >= :since")
-    fun hangupsSince(since: Long): Int
+    @Query("SELECT COUNT(*) FROM identifications WHERE LOWER(type) = :type")
+    fun identifiedCount(type: String): Int
+
+    @Query("SELECT COUNT(*) FROM identifications")
+    fun identifiedTotal(): Int
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {

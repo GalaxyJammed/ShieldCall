@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">ShieldCall</string>
-    <string name="widget_description">Check numbers and see how many calls ShieldCall blocked.</string>
+    <string name="widget_shortcuts_name">Shortcuts</string>
+    <string name="widget_stats_name">Stats</string>
+    <string name="widget_description">Buttons for important places in the app</string>
+    <string name="widget_stats_description">Important stats at a glance</string>
 </resources>

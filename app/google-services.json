@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "119648218254-fb0mq7vmclg2162hf7a3uab1c9urcm9i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.shieldcall",
+            "certificate_hash": "2076519ed7bd1047b470ddb1890a8956e560ef9a"
+          }
+        },
+        {
           "client_id": "119648218254-ai3s6ic4g3pbiubb92igv78odjl9ojhf.apps.googleusercontent.com",
           "client_type": 3
         }

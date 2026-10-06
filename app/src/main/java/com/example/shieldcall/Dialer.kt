@@ -36,6 +36,10 @@ import android.telecom.PhoneAccount
 import androidx.compose.material.icons.filled.Voicemail
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import android.content.ClipDescription
+import android.content.ClipboardManager
+import android.widget.Toast
+import androidx.compose.material.icons.filled.ContentPaste
 
 private val Green = Color(0xFF2E7D32)
 
@@ -45,6 +49,11 @@ object DialRequest {
 
 object HomeRequest {
     var go by mutableStateOf(false)
+}
+
+object TabRequest {
+    var tab by mutableStateOf<Int?>(null)
+    var contactsMode by mutableStateOf<Int?>(null)
 }
 
 object UiState {
@@ -103,6 +112,17 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
     var selectedSim by remember { mutableStateOf(SimChoice.selected(context)?.id) }
     val util = remember { PhoneNumberUtil.getInstance() }
     val region = remember { Reports.region(context) }
+    val clipboard = remember { context.getSystemService(ClipboardManager::class.java) }
+    var hasClip by remember {
+        mutableStateOf(clipboard.primaryClipDescription?.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN) == true)
+    }
+    DisposableEffect(clipboard) {
+        val listener = ClipboardManager.OnPrimaryClipChangedListener {
+            hasClip = clipboard.primaryClipDescription?.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN) == true
+        }
+        clipboard.addPrimaryClipChangedListener(listener)
+        onDispose { clipboard.removePrimaryClipChangedListener(listener) }
+    }
     var digits by rememberSaveable(initial) { mutableStateOf(initial) }
     val parsed = remember(digits) {
         try {
@@ -169,6 +189,20 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
             maxLines = 1,
             color = if (digits.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
         )
+        if (digits.isEmpty() && hasClip) {
+            TextButton(onClick = {
+                val text = clipboard.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+                val found = util.findNumbers(text, region).firstOrNull()?.number()
+                val value = if (found != null) "+${found.countryCode}${found.nationalNumber}"
+                else text.filter { it.isDigit() || it == '+' }.take(20).takeIf { v -> v.count { it.isDigit() } >= 3 }
+                if (value != null) digits = value
+                else Toast.makeText(context, "No phone number found in the clipboard", Toast.LENGTH_SHORT).show()
+            }) {
+                Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Paste from clipboard")
+            }
+        }
         Text(
             "Hold 0 for +, hold 1 for voicemail",
             style = MaterialTheme.typography.bodySmall,

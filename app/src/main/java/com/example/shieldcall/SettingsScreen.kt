@@ -62,6 +62,11 @@ fun SettingsScreen(onBack: () -> Unit) {
         AdminScreen { admin = false }
         return
     }
+    var contact by rememberSaveable { mutableStateOf(false) }
+    if (contact) {
+        ContactUsScreen { contact = false }
+        return
+    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -359,6 +364,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
                 HorizontalDivider()
                 BlockLink("What's new", null) { showNotes = true }
+                HorizontalDivider()
+                BlockLink("Contact us", null) { contact = true }
                 HorizontalDivider()
                 BlockLink("Privacy policy", null) {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Links.PRIVACY)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))

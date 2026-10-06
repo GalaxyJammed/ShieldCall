@@ -19,6 +19,7 @@ object Links {
     const val RELEASES = "https://github.com/galaxyjammed/ShieldCall/releases"
     const val PRIVACY = "https://github.com/galaxyjammed/ShieldCall/blob/main/PRIVACY_POLICY.md"
     const val LICENSES = "https://github.com/galaxyjammed/ShieldCall/blob/main/THIRD_PARTY_LICENSES.md"
+    const val EMAIL = "galaxyjammed@gmail.com"
 }
 
 object Tags {

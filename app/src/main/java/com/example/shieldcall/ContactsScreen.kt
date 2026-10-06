@@ -87,6 +87,13 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
     val calls by dao.recentFlow().collectAsState(emptyList())
     val favKeys = Favorites.keys
     var mode by rememberSaveable { mutableIntStateOf(0) }
+    val requestedMode = TabRequest.contactsMode
+    LaunchedEffect(requestedMode) {
+        if (requestedMode != null) {
+            mode = requestedMode
+            TabRequest.contactsMode = null
+        }
+    }
     var menu by remember { mutableStateOf(false) }
     var contacts by remember { mutableStateOf<List<ContactItem>?>(null) }
     var query by remember { mutableStateOf("") }

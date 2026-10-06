@@ -58,10 +58,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.os.PowerManager
 
 private val CallGreen = Color(0xFF2E7D32)
 private val CallAmber = Color(0xFFF9A825)
 private val CallRed = Color(0xFFC62828)
+
+object InCallUi {
+    var visible by mutableStateOf(false)
+}
 
 class InCallActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -82,6 +87,18 @@ class InCallActivity : ComponentActivity() {
                 }
             }
         }
+    }
+    override fun onStop() {
+        super.onStop()
+        Widgets.refresh(this)
+    }
+    override fun onResume() {
+        super.onResume()
+        InCallUi.visible = true
+    }
+    override fun onPause() {
+        super.onPause()
+        InCallUi.visible = false
     }
 }
 
@@ -126,6 +143,15 @@ private fun InCallScreen(onFinish: () -> Unit) {
     LaunchedEffect(state) {
         if (state == Call.STATE_ACTIVE) wasActive = true
         if (state != Call.STATE_RINGING) context.getSystemService(NotificationManager::class.java).cancel(1)
+    }
+    val nearEar = InCallUi.visible && !keypad && CallManager.route == CallAudioState.ROUTE_EARPIECE &&
+            (state == Call.STATE_ACTIVE || state == Call.STATE_DIALING || state == Call.STATE_CONNECTING)
+    DisposableEffect(nearEar) {
+        val pm = context.getSystemService(PowerManager::class.java)
+        val lock = if (nearEar && pm.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) {
+            pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "ShieldCall:proximity").also { it.acquire(4 * 60 * 60 * 1000L) }
+        } else null
+        onDispose { lock?.let { if (it.isHeld) it.release() } }
     }
 
     val key = remember(number) { Reports.key(number, region) }

@@ -45,6 +45,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.google.i18n.phonenumbers.PhoneNumberUtil
 
 private val AmberColor = Color(0xFFF9A825)
 private val RedColor = Color(0xFFC62828)
@@ -67,7 +68,7 @@ data class BarData(
 }
 
 @Composable
-fun StatsScreen() {
+fun StatsScreen(onNumber: (String) -> Unit = {}) {
     val context = LocalContext.current
     val dao = remember { SpamDb.get(context).dao() }
 
@@ -84,12 +85,11 @@ fun StatsScreen() {
     val hangupCount = hangups.size
 
     val now = remember { System.currentTimeMillis() }
-    val weekBlocked = remember(hangups) { hangups.count { it.time >= now - 7 * DAY } }
     val monthHangups = remember(hangups) { hangups.filter { it.time >= now - 30 * DAY } }
     val byReason = remember(monthHangups) {
         monthHangups.groupingBy { it.reason.ifBlank { "Other" } }.eachCount().entries.sortedByDescending { it.value }
     }
-
+    val insights = remember(hangups) { blockInsights(hangups) }
     val reviewsWritten = remember { Contribution.reviews(context) }
     val lookups = remember { LookupStats.total(context) }
     val lookupCountries = remember { LookupStats.countries(context) }
@@ -186,23 +186,50 @@ fun StatsScreen() {
 
         Spacer(Modifier.height(20.dp))
 
-        Section("Calls Blocked")
-        ShieldCard(Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatBox("This week", weekBlocked, MaterialTheme.colorScheme.primary, Icons.Default.Block, Modifier.weight(1f))
-                    StatBox("Last 30 days", monthHangups.size, MaterialTheme.colorScheme.primary, Icons.Default.Block, Modifier.weight(1f))
+    Section("Blocked Call Insights")
+    ShieldCard(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (hangupCount == 0) {
+                Text("No blocked calls yet.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                insights.busiest?.let {
+                    Column {
+                        Text("Busiest time", style = MaterialTheme.typography.titleSmall)
+                        Text("Most blocked calls arrive around $it", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (insights.countries.isNotEmpty()) {
+                    Column {
+                        Text("Where they come from", style = MaterialTheme.typography.titleSmall)
+                        insights.countries.forEach { (label, n) ->
+                            Row(Modifier.fillMaxWidth().padding(top = 4.dp)) {
+                                Text(label, Modifier.weight(1f))
+                                Text("$n", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+                if (insights.repeat.isNotEmpty()) {
+                    Column {
+                        Text("Repeat callers (tap for details)", style = MaterialTheme.typography.titleSmall)
+                        insights.repeat.forEach { (key, n) ->
+                            Row(Modifier.fillMaxWidth().clickable { onNumber(key) }.padding(vertical = 6.dp)) {
+                                Text("+$key", Modifier.weight(1f))
+                                Text("$n calls", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
                 }
                 if (byReason.isNotEmpty()) {
-                    Spacer(Modifier.height(12.dp))
                     Text(
-                        byReason.joinToString("  ·  ") { "${it.key} ${it.value}" },
+                        "By reason: " + byReason.joinToString("  ·  ") { "${it.key} ${it.value}" },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
         }
+    }
 
         Spacer(Modifier.height(20.dp))
 
@@ -660,6 +687,41 @@ private fun formatTimeSaved(totalSeconds: Long): String {
 @Composable
 fun StatsScreenPreview() {
     ShieldTheme(dark = false) {
-        StatsScreen()
+        StatsScreen(onNumber = {})
     }
+}
+
+private data class BlockInsights(
+    val busiest: String?,
+    val countries: List<Pair<String, Int>>,
+    val repeat: List<Pair<String, Int>>
+)
+
+private fun blockInsights(hangups: List<HangupEntry>): BlockInsights {
+    val numbers = hangups.map { it.number }.filter { it.length >= 5 && it.all { c -> c.isDigit() } }
+    val byHour = IntArray(24)
+    val cal = Calendar.getInstance()
+    hangups.forEach {
+        cal.timeInMillis = it.time
+        byHour[cal.get(Calendar.HOUR_OF_DAY)]++
+    }
+    val peak = byHour.indices.maxByOrNull { byHour[it] }?.takeIf { byHour[it] > 0 }
+    val busiest = peak?.let { "%02d:00–%02d:00".format(it, (it + 1) % 24) }
+    val util = PhoneNumberUtil.getInstance()
+    val topCountries = numbers
+        .mapNotNull { n ->
+            try {
+                util.getRegionCodeForNumber(util.parse("+$n", null))
+            } catch (e: Exception) {
+                null
+            }
+        }
+        .groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(3)
+        .map { (region, n) ->
+            val c = countries.firstOrNull { it.region == region }
+            (if (c != null) "${c.flag} ${c.name}" else region) to n
+        }
+    val repeat = numbers.groupingBy { it }.eachCount().filter { it.value >= 2 }
+        .entries.sortedByDescending { it.value }.take(3).map { it.key to it.value }
+    return BlockInsights(busiest, topCountries, repeat)
 }

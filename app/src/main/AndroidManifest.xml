@@ -14,6 +14,7 @@
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT"/>
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.WRITE_CONTACTS"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <application
         android:allowBackup="true"
@@ -66,7 +67,7 @@
         <receiver
             android:name=".ShieldWidgetReceiver"
             android:exported="true"
-            android:label="ShieldCall">
+            android:label="@string/widget_shortcuts_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
             </intent-filter>
@@ -74,6 +75,18 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/shield_widget_info"/>
         </receiver>
+        <receiver
+            android:name=".ShieldStatsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_stats_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/shield_stats_widget_info"/>
+        </receiver>
+        <receiver android:name=".CallActionReceiver" android:exported="false"/>
 
         <activity
             android:name=".InCallActivity"
@@ -105,6 +118,16 @@
         </service>
 
         <service android:name=".OverlayService" android:exported="false"/>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"/>
+        </provider>
 
     </application>
 

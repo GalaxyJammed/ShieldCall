@@ -18,24 +18,22 @@ data class Release(val version: String, val notes: List<String>)
 object Changelog {
     val releases = listOf(
         Release(
+            "2.1.0",
+            listOf(
+                "Repurposed the \"Block\" information on \"Stats\" screen to something more relevant (including the widget)",
+                "Added a 'Copy from Clipboard' function to the dialer that checks if you have a valid phone number in your clipboard allowing you to immediately paste it",
+                "Added \"Contact Us\" in the \"Settings\" to easily report Bugs/Give feedback",
+                "Added \"Stats\" widget that shows your important stats at a glance",
+                "Added 'Previews' to both Widgets",
+                "Added 'On-going Call' notification so you can easily swap back to the call from your notifications when a call is ongoing instead of having to enter the app manually everytime",
+                "Added a QOL feature where if your phone is close to your head/ears it will close the screen so you don't accidentally end the call with your head"
+            )
+        ),
+        Release(
             "2.0.0",
             listOf(
                 "Repurposed the \"About\" section to a \"What's new\" along with \"Privacy Policy\" and \"Licenses\" for more information",
                 "Added Widget to easily lookup and dial numbers"
-            )
-        ),
-        Release(
-            "1.9.0",
-            listOf(
-                "Added \"My note\" when looking up a number",
-                "Added \"Tags\" when voting a number as \"Spam\"/\"Scam\" that shows up in the \"Trust score\" card",
-                "Replaced the red warning \"Set ShieldCall as default Dialer\" to a general 'Missing Permissions' red card so you can at a glance view if you have given the phone every necessary permission.",
-                "Added \"Share Summary\" to the \"Number Details\" screen to share the warning summary of a number",
-                "Added \"Always allow this number\" to the \"Number Details\" screen to instantly whitelist a number",
-                "Looking up the number of an unsaved contact now gives you a quick \"Add to contacts\" button",
-                "Made the \"Number Details\" screen prettier",
-                "Changed some GUI/UI elements to make them nicer",
-                "Made the Scrollbars in each screen not go all the way to the bottom and instead end where the screen content actually ends"
             )
         )
     )
@@ -74,8 +72,9 @@ fun WhatsNewDialog(all: Boolean, onDismiss: () -> Unit) {
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(12.dp))
+                val scroll = rememberScrollState()
                 Column(
-                    Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
+                    Modifier.heightIn(max = 420.dp).scrollbar(scroll).verticalScroll(scroll),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     shown.forEach { r ->

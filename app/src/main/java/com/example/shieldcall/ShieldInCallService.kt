@@ -17,9 +17,79 @@ import android.telecom.TelecomManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import android.telecom.PhoneAccount
+
 
 @Suppress("DEPRECATION")
 class ShieldInCallService : InCallService() {
+
+    private var ongoingGen = 0
+
+    private val ongoingCallback = object : Call.Callback() {
+        override fun onStateChanged(call: Call, state: Int) {
+            updateOngoing()
+        }
+
+        override fun onDetailsChanged(call: Call, details: Call.Details) {
+            updateOngoing()
+        }
+    }
+
+    private fun updateOngoing() {
+        val nm = getSystemService(NotificationManager::class.java)
+        val gen = ++ongoingGen
+        val call = CallManager.calls.firstOrNull {
+            it.parent == null &&
+                    it.state != Call.STATE_RINGING &&
+                    it.state != Call.STATE_DISCONNECTING &&
+                    it.state != Call.STATE_DISCONNECTED
+        }
+        if (call == null) {
+            nm.cancel(4)
+            return
+        }
+        val state = call.state
+        val details = call.details
+        val raw = details.handle?.schemeSpecificPart.orEmpty()
+        val voicemail = details.handle?.scheme == PhoneAccount.SCHEME_VOICEMAIL
+        val muted = CallManager.muted
+        val speaker = CallManager.speaker
+        CoroutineScope(Dispatchers.IO).launch {
+            val key = Reports.key(raw, Reports.region(this@ShieldInCallService))
+            val title = if (voicemail) "Voicemail"
+            else Reports.loadContactInfo(this@ShieldInCallService, raw).name?.takeIf { it.isNotBlank() }
+                ?: key?.let { "+$it" } ?: raw.ifBlank { "Unknown number" }
+            nm.createNotificationChannel(NotificationChannel("ongoing", "Ongoing call", NotificationManager.IMPORTANCE_LOW))
+            fun action(a: String, code: Int) = PendingIntent.getBroadcast(
+                this@ShieldInCallService, code,
+                Intent(this@ShieldInCallService, CallActionReceiver::class.java).setAction(a),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val open = PendingIntent.getActivity(
+                this@ShieldInCallService, 4,
+                Intent(this@ShieldInCallService, InCallActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val b = NotificationCompat.Builder(this@ShieldInCallService, "ongoing")
+                .setSmallIcon(android.R.drawable.sym_action_call)
+                .setContentTitle(title)
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setContentIntent(open)
+                .addAction(0, "End", action(CallActionReceiver.END, 41))
+                .addAction(0, if (muted) "Unmute" else "Mute", action(CallActionReceiver.MUTE, 42))
+                .addAction(0, if (speaker) "Phone" else "Speaker", action(CallActionReceiver.SPEAKER, 43))
+            when {
+                state == Call.STATE_ACTIVE && details.connectTimeMillis > 0 ->
+                    b.setContentText("Ongoing call").setUsesChronometer(true).setWhen(details.connectTimeMillis).setShowWhen(true)
+                state == Call.STATE_HOLDING -> b.setContentText("On hold")
+                else -> b.setContentText("Calling…")
+            }
+            if (gen == ongoingGen) nm.notify(4, b.build())
+        }
+    }
 
     private val incomingCalls = mutableSetOf<Call>()
 
@@ -29,11 +99,13 @@ class ShieldInCallService : InCallService() {
     }
 
     override fun onDestroy() {
+        getSystemService(NotificationManager::class.java).cancel(4)
         CallManager.service = null
         super.onDestroy()
     }
 
     override fun onCallAdded(call: Call) {
+        call.registerCallback(ongoingCallback)
         CallManager.add(call)
         callAudioState?.let { CallManager.audio(it) }
         Prefs.load(this)
@@ -47,6 +119,7 @@ class ShieldInCallService : InCallService() {
             startActivity(intent)
         } catch (e: Exception) {
         }
+        updateOngoing()
     }
 
     private fun showMini(call: Call) {
@@ -84,7 +157,9 @@ class ShieldInCallService : InCallService() {
 
     override fun onCallRemoved(call: Call) {
         val incoming = incomingCalls.remove(call)
+        call.unregisterCallback(ongoingCallback)
         CallManager.remove(call)
+        updateOngoing()
         getSystemService(NotificationManager::class.java).cancel(1)
         logHistory(call, incoming)
         if (call.details.disconnectCause?.code == DisconnectCause.MISSED) {
@@ -185,5 +260,6 @@ class ShieldInCallService : InCallService() {
     @Suppress("DEPRECATION")
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         CallManager.audio(audioState)
+        updateOngoing()
     }
 }

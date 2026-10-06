@@ -32,6 +32,10 @@ import android.telecom.PhoneAccount
 import android.telecom.TelecomManager
 import android.widget.Toast
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import androidx.glance.appwidget.updateAll
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 data class Perms(val phone: Boolean = false, val overlay: Boolean = false, val role: Boolean = false) {
     val all get() = phone && overlay && role
@@ -86,8 +90,13 @@ class MainActivity : FragmentActivity() {
     }
 
     override fun onResume() {
+        Widgets.refresh(this)
         super.onResume()
         refresh()
+    }
+    override fun onStop() {
+        super.onStop()
+        Widgets.refresh(this)
     }
 
     private fun refresh() {
@@ -119,46 +128,33 @@ class MainActivity : FragmentActivity() {
         if (intent == null) return
         val action = intent.action
 
-        when (action) {
+        when (intent?.action) {
             WidgetActions.LOOKUP -> {
-                HomeRequest.go = true
-                intent.action = Intent.ACTION_MAIN
+                TabRequest.tab = 0
+                intent?.action = Intent.ACTION_MAIN
+                return
             }
             WidgetActions.DIAL -> {
                 DialRequest.number = ""
-                intent.action = Intent.ACTION_MAIN
+                intent?.action = Intent.ACTION_MAIN
+                return
             }
-            Intent.ACTION_SEND -> {
-                val shared = intent.getStringExtra(Intent.EXTRA_TEXT)
-                processSharedText(shared)
-                intent.action = Intent.ACTION_MAIN
+            WidgetActions.RECENTS -> {
+                TabRequest.contactsMode = 1
+                TabRequest.tab = 1
+                intent?.action = Intent.ACTION_MAIN
+                return
             }
-            Intent.ACTION_PROCESS_TEXT -> {
-                val shared = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString()
-                processSharedText(shared)
-                intent.action = Intent.ACTION_MAIN
+            WidgetActions.CONTACTS -> {
+                TabRequest.contactsMode = 0
+                TabRequest.tab = 1
+                intent?.action = Intent.ACTION_MAIN
+                return
             }
-            else -> {
-                if (intent.getBooleanExtra("voicemail", false)) {
-                    intent.removeExtra("voicemail")
-                    getSystemService(NotificationManager::class.java).cancel(3)
-                    if (checkSelfPermission(Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-                        getSystemService(TelecomManager::class.java)
-                            .placeCall(Uri.fromParts(PhoneAccount.SCHEME_VOICEMAIL, "", null), null)
-                    }
-                    return
-                }
-                val dialNumber = intent.getStringExtra("dial")
-                if (dialNumber != null) {
-                    DialRequest.number = dialNumber
-                    intent.removeExtra("dial")
-                    intent.getStringExtra("tag")?.let { getSystemService(NotificationManager::class.java).cancel(it, 2) }
-                    return
-                }
-                if ((action == Intent.ACTION_DIAL || action == Intent.ACTION_VIEW) && intent.data?.scheme == "tel") {
-                    val telNumber = intent.data?.schemeSpecificPart ?: ""
-                    DialRequest.number = telNumber
-                }
+            WidgetActions.STATS -> {
+                TabRequest.tab = 2
+                intent?.action = Intent.ACTION_MAIN
+                return
             }
         }
     }
@@ -196,13 +192,13 @@ fun Root(perms: Perms, onPhone: () -> Unit, onOverlay: () -> Unit, onRole: () ->
             settings = false
         }
     }
-    val home = HomeRequest.go
-    LaunchedEffect(home) {
-        if (home) {
-            tab = 0
+    val requestedTab = TabRequest.tab
+    LaunchedEffect(requestedTab) {
+        if (requestedTab != null) {
+            tab = requestedTab
             number = null
             settings = false
-            HomeRequest.go = false
+            TabRequest.tab = null
         }
     }
     val lookup = LookupRequest.number
