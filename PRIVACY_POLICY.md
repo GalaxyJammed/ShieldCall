@@ -68,3 +68,4 @@ If this policy changes, the date above is updated. Changes to the app that affec
 ## Contact
 
 Questions or requests: open an issue at https://github.com/galaxyjammed/ShieldCall/issues
+"Contact us" opens your email app with the details you choose to send. ShieldCall does not send them itself.

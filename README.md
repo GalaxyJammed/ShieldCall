@@ -86,6 +86,9 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Switch between **light** and **dark** themes
 - Smooth slide animations between screens and a bottom bar that highlights the screen you're on
 
+### 📦 Widgets
+- Widget that shows your amount of blocks in the week. Quick Lookup and Dial buttons straight from your home screen
+
 ### 🚀 More to Come
 - ShieldCall is a work in progress and new features are on the way.
 
