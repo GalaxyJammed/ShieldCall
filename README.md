@@ -33,46 +33,48 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Works through Android's call screening (or a custom one if you have made the app as the default dial), so the info shows up while the phone is still ringing
 - Can be switched off at any time with the **Automatic call lookup** setting (disabled when having full-screen calls enabled)
 - **Decline & Message** or send **Voicemails** through the dialer incase you wish to respond without calling
-- Notifications on missed calls that show the "Safety Ranking" of a missed call along with a "Call Back" button
+- **Notifications on missed calls** that show the "Safety Ranking" of a missed call along with a "Call Back" button
 - Immediately warns you on Calls/Missed Calls from foreign countries for callback scams
-- Supports multiple calls (Decline, Hold & Accept, End current call & Accept)
-- Supports dual-SIM allowing you to call a number from either SIM you have
-- Supports Speaker, Headset and any other bluetooth device that connects for input/output audio
-- On-going call notification so you can always switch back to the dialer if you ever leave the app whilst in a call along with buttons to control the dialer just from the notification
-- Screen instantly dims when close to your face so you never accidentally touch a button in the dialer
+- Supports **multiple calls** (Decline, Hold & Accept, End current call & Accept)
+- Supports **dual-SIM** allowing you to call a number from either SIM you have
+- Supports **Speaker, Headset and any other bluetooth device** that connects for input/output audio
+- **On-going call notification** so you can always switch back to the dialer if you ever leave the app whilst in a call along with buttons to control the dialer just from the notification
+- Screen **instantly dims when close to your face** so you never accidentally touch a button in the dialer
 
 ### 🔎 Number Lookup
 - Look up any phone number with a searchable **country code picker** that supports clipboard so you can instantly add a number
 - Numbers are validated for the selected country, so typos and impossible numbers are caught before you search
 - See the number's **trust score** and how many people voted it Safe, Spam or Scam along with reviews
-- Share the number's trust score with other people directly from the "Share Icon"
-- Add private notes to each number that are only visible to you
-- Whitelist numbers you look-up so they can call you regardless of your block settings
+- **Share** the number's trust score with other people directly from the "Share Icon"
+- Add **private notes** to each number that are only visible to you
+- **Whitelist** numbers you look-up so they can call you regardless of your block settings
 - Add unknown numbers to your contacts with a single button press
+- Shows the last 5 calls and if they were **ongoing, outgoing, declined**
+- Shortcuts for **Call, Message, Favorite, Block/Unblock, Edit Contact**
 
 ### ⭐ Community Votes and Reviews
 - Vote a number as **Safe**, **Spam** or **Scam** and add a short written review about your experience
 - One vote per Google account per number, so a single person can't flood a number with reviews
 - Reviews are only loaded when you tap **Show reviews**, which keeps the app fast and light
-- Vote anonymously or using your Google Account
-- Add tags to numbers you know are Spam,Scam that show up in the number's trust score
+- Vote **anonymously** or using your **Google Account**
+- **Add tags** to numbers you know are Spam,Scam that show up in the number's trust score
 - Like other reviews and filter by **Newest/Most Liked** reviews for ease or report ones you think were done in bad faith
 
 ### 👥 Contacts and Recent Calls
 - Browse your contacts with their photos and tap anyone to see their safety screen
 - Switch to **Recent Calls/Favorites** with the filter button to see the last 100 calls ShieldCall screened along with information
-- Favorite, Block or unblock any contact or number with one tap
-- Add any contact immediately through the app (syncs with your Google Account and the default android contacts app)
+- **Favorite, Block or unblock** any contact or number with one tap
+- Add any contact **immediately through the app** (syncs with your Google Account and the default android contacts app)
 
 ### 🛡️ Smart Blocking Preferences
 - Block calls from **Spam & scam**, **Businesses**, **Other countries**, **Unknown numbers**, **Unsaved numbers** or **Specific Starting Prefixes**
 - Choose what happens when a call matches:
   - **Hang up immediately**
   - **Block the number** and add it to your blocked list
-- Block every unsaved contact depending on the time of day through 'Quiet Hours'
+- Block every unsaved contact depending on the time of day through **Quiet Hours**
 - Saved contacts are never caught by the category rules
-- Unblock any contact whenever you want in the click of a button
-- Whitelist any number you wish from specific areas incase you blacklisted that entire country/starting prefix
+- **Unblock** any contact whenever you want in the click of a button
+- **Whitelist** any number you wish from specific areas incase you blacklisted that entire country/starting prefix
 
 ### 📊 Stats
 - Shows how many calls you identified as Spam,Scam,Safe
