@@ -18,6 +18,15 @@ data class Release(val version: String, val notes: List<String>)
 object Changelog {
     val releases = listOf(
         Release(
+            "2.2.0",
+            listOf(
+                "Added 'Recent Contacts' in the Dialer so you can easily re-dial a previous contact",
+                "Made the \"Dial\" screen smarter as it now attempts to suggest you upto 3 numbers that you are about to dial before you enter the whole number",
+                "Added shortcuts in \"Number Details\" for \"Call, Message, Favorite, Block/Unblock, Edit Contact\"",
+                "Added \"Call History\" in \"Number Details\" that shows the last 5 calls"
+            )
+        ),
+        Release(
             "2.1.0",
             listOf(
                 "Repurposed the \"Block\" information on \"Stats\" screen to something more relevant (including the widget)",
@@ -27,13 +36,6 @@ object Changelog {
                 "Added 'Previews' to both Widgets",
                 "Added 'On-going Call' notification so you can easily swap back to the call from your notifications when a call is ongoing instead of having to enter the app manually everytime",
                 "Added a QOL feature where if your phone is close to your head/ears it will close the screen so you don't accidentally end the call with your head"
-            )
-        ),
-        Release(
-            "2.0.0",
-            listOf(
-                "Repurposed the \"About\" section to a \"What's new\" along with \"Privacy Policy\" and \"Licenses\" for more information",
-                "Added Widget to easily lookup and dial numbers"
             )
         )
     )

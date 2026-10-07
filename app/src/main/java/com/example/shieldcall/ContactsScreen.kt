@@ -57,7 +57,7 @@ data class ContactItem(
     val incoming: Boolean? = null
 )
 
-private fun loadContacts(context: Context): List<ContactItem> {
+fun loadContacts(context: Context): List<ContactItem> {
     val region = Reports.region(context)
     val out = LinkedHashMap<String, ContactItem>()
     context.contentResolver.query(
@@ -224,6 +224,7 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
         )
         Spacer(Modifier.height(8.dp))
         when {
+            mode == 1 -> RecentCalls(Modifier.weight(1f), onLookup)
             list == null -> CircularProgressIndicator()
             shown.isEmpty() -> Text(
                 when (mode) {

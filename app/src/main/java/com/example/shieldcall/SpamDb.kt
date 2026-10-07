@@ -149,6 +149,21 @@ interface SpamDao {
 
     @Query("SELECT COUNT(*) FROM identifications")
     fun identifiedTotal(): Int
+
+    @Query("SELECT * FROM calls ORDER BY time DESC")
+    fun allCallsFlow(): Flow<List<CallEntry>>
+
+    @Query("DELETE FROM calls WHERE id IN (:ids)")
+    fun deleteCalls(ids: List<Long>)
+
+    @Query("DELETE FROM calls")
+    fun clearCalls()
+
+    @Query("SELECT number FROM calls WHERE status = 'Outgoing' ORDER BY time DESC LIMIT 1")
+    fun lastOutgoing(): String?
+
+    @Query("SELECT * FROM calls WHERE number = :number ORDER BY time DESC LIMIT 5")
+    fun callsFor(number: String): Flow<List<CallEntry>>
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {

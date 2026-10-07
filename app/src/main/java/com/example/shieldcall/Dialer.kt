@@ -40,6 +40,10 @@ import android.content.ClipDescription
 import android.content.ClipboardManager
 import android.widget.Toast
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val Green = Color(0xFF2E7D32)
 
@@ -112,6 +116,19 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
     var selectedSim by remember { mutableStateOf(SimChoice.selected(context)?.id) }
     val util = remember { PhoneNumberUtil.getInstance() }
     val region = remember { Reports.region(context) }
+    val dao = remember { SpamDb.get(context).dao() }
+    var contacts by remember { mutableStateOf<List<ContactItem>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        contacts = withContext(Dispatchers.IO) {
+            try {
+                loadContacts(context)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+    var digits by rememberSaveable(initial) { mutableStateOf(initial) }
+    val suggestions = remember(digits, contacts) { DialerSuggest.find(contacts, digits) }
     val clipboard = remember { context.getSystemService(ClipboardManager::class.java) }
     var hasClip by remember {
         mutableStateOf(clipboard.primaryClipDescription?.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN) == true)
@@ -123,7 +140,6 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
         clipboard.addPrimaryClipChangedListener(listener)
         onDispose { clipboard.removePrimaryClipChangedListener(listener) }
     }
-    var digits by rememberSaveable(initial) { mutableStateOf(initial) }
     val parsed = remember(digits) {
         try {
             util.parse(digits, region).takeIf { util.isValidNumber(it) }
@@ -223,6 +239,27 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
                 }
             }
         }
+        if (suggestions.isNotEmpty()) {
+            Spacer(Modifier.height(8.dp))
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                suggestions.forEach { c ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { digits = "+${c.key}" }
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CallAvatar(photoUri = c.photo, size = 36.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(c.name, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                            Text(c.raw, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
         Spacer(Modifier.weight(1f))
         listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("*", "0", "#")).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -241,7 +278,13 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.size(72.dp))
-            Key(onClick = { if (canCall) start() }, color = if (canCall) Green else Green.copy(alpha = 0.3f)) {
+            Key(
+                onClick = {
+                    if (digits.isEmpty()) dao.lastOutgoing()?.let { digits = "+$it" }
+                    else if (canCall) start()
+                },
+                color = if (canCall || digits.isEmpty()) Green else Green.copy(alpha = 0.3f)
+            ) {
                 Icon(Icons.Default.Call, contentDescription = "Call", tint = Color.White)
             }
             Key(onClick = { digits = digits.dropLast(1) }, onLong = { digits = "" }) {

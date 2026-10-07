@@ -38,7 +38,7 @@ data class Info(
     val myTag: String? = null,
     val tags: Map<String, Long> = emptyMap()
 )
-data class ContactInfo(val name: String?, val photo: String?, val location: String? = null)
+data class ContactInfo(val name: String?, val photo: String?, val location: String? = null, val lookupUri: String? = null)
 
 data class Flagged(val tail: String, val rid: String, val type: String, val text: String, val author: String, val flags: Long)
 
@@ -331,6 +331,7 @@ object Reports {
         val queries = listOf(number, "+$number", k)
         var name: String? = null
         var photo: String? = null
+        var lookup: String? = null
         for (q in queries) {
             if (q.isBlank()) continue
             try {
@@ -340,7 +341,7 @@ object Reports {
                 )
                 context.contentResolver.query(
                     uri,
-                    arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_THUMBNAIL_URI),
+                    arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME, ContactsContract.PhoneLookup.PHOTO_THUMBNAIL_URI, ContactsContract.PhoneLookup._ID, ContactsContract.PhoneLookup.LOOKUP_KEY),
                     null,
                     null,
                     null,
@@ -348,6 +349,7 @@ object Reports {
                     if (c.moveToFirst()) {
                         name = c.getString(0)
                         photo = c.getString(1)
+                        lookup = ContactsContract.Contacts.getLookupUri(c.getLong(2), c.getString(3))?.toString()
                     }
                 }
                 if (name != null) break
@@ -355,7 +357,7 @@ object Reports {
             }
         }
         val loc = loadLocation(context, number)
-        return ContactInfo(name, photo, loc)
+        return ContactInfo(name, photo, loc, lookup)
     }
 
     fun loadContactName(context: Context, number: String): String? {

@@ -49,6 +49,16 @@ import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Close
+import android.text.format.DateUtils
+import androidx.compose.material.icons.automirrored.filled.Message
+import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -73,6 +83,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     var reload by remember { mutableIntStateOf(0) }
     var text by remember { mutableStateOf("") }
     var adding by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
 
     var contactInfo by remember { mutableStateOf<ContactInfo?>(null) }
     var sort by remember { mutableStateOf("new") }
@@ -81,6 +92,11 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     var more by remember { mutableStateOf(false) }
     var loadingMore by remember { mutableStateOf(false) }
     var pendingVote by remember { mutableStateOf<String?>(null) }
+
+    val dao = remember { SpamDb.get(context).dao() }
+    val blockedList by dao.blockedFlow().collectAsState(emptyList())
+    val historyFlow = remember(tail) { dao.callsFor(tail) }
+    val history by historyFlow.collectAsState(emptyList())
 
     suspend fun fetch(reset: Boolean) {
         val page = Reports.loadReviews(tail, sort, if (reset) null else cursor)
@@ -218,6 +234,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     val listState = rememberLazyListState()
     Box(Modifier.fillMaxSize()) {
         if (adding) NewContactDialog(displayNum) { adding = false }
+        if (editing) contactInfo?.lookupUri?.let { EditContactDialog(it) { editing = false } }
         pendingVote?.let { type ->
             TagDialog(
                 type = type,
@@ -297,6 +314,62 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                                     Spacer(Modifier.width(6.dp))
                                     Text("Add to contacts")
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                val saved = !contactInfo?.name.isNullOrBlank()
+                val isFav = tail in Favorites.keys
+                val isBlocked = blockedList.any { it.number == tail }
+                val lookup = contactInfo?.lookupUri
+                ShieldCard(Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        QuickAction(Icons.Default.Call, "Call", false) { showCallDialog = true }
+                        QuickAction(Icons.AutoMirrored.Filled.Message, "Message", false) {
+                            try {
+                                context.startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$cleanNum")))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No messaging app found", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                        if (saved) {
+                            QuickAction(if (isFav) Icons.Default.Star else Icons.Default.StarBorder, "Favorite", isFav) {
+                                Favorites.toggle(context, tail)
+                            }
+                        }
+                        QuickAction(Icons.Default.Block, if (isBlocked) "Unblock" else "Block", isBlocked) {
+                            if (isBlocked) dao.unblock(tail) else dao.block(BlockedNumber(tail, contactInfo?.name.orEmpty()))
+                        }
+                        if (saved && lookup != null) {
+                            QuickAction(Icons.Default.Edit, "Edit", false) { editing = true }
+                        }
+                    }
+                }
+            }
+            if (history.isNotEmpty()) item {
+                ShieldCard(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Call history", style = MaterialTheme.typography.titleMedium)
+                        history.forEach { c ->
+                            val (icon, tint) = callStatusStyle(c.status, MaterialTheme.colorScheme.onSurfaceVariant)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    c.status + if (c.duration > 0) " · %d:%02d".format(c.duration / 60, c.duration % 60) else "",
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    DateUtils.getRelativeTimeSpanString(c.time).toString(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }
@@ -619,5 +692,13 @@ private fun ReviewCard(r: Review, onLike: () -> Unit, onFlag: () -> Unit, onDele
             },
             dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+private fun QuickAction(icon: ImageVector, label: String, active: Boolean, onClick: () -> Unit) {
+    val tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    IconButton(onClick = onClick) {
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
     }
 }
