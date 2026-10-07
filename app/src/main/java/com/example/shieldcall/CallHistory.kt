@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 
 private val InGreen = Color(0xFF2E7D32)
 private val OutRed = Color(0xFFC62828)
@@ -92,7 +93,7 @@ fun RecentCalls(modifier: Modifier, onLookup: (String) -> Unit) {
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf("All", "Incoming", "Outgoing", "Missed", "Blocked").forEach { f ->
+            listOf("All", "Incoming", "Outgoing", "Missed", "Blocked", "Silenced").forEach { f ->
                 FilterChip(selected = filter == f, onClick = { filter = f }, label = { Text(f) })
             }
         }
@@ -247,5 +248,6 @@ internal fun callStatusStyle(status: String, neutral: Color): Pair<ImageVector, 
     "Missed" -> Icons.AutoMirrored.Filled.CallMissed to OutRed
     "Declined" -> Icons.AutoMirrored.Filled.CallReceived to Amber
     "Blocked" -> Icons.Default.Block to neutral
+    "Silenced" -> Icons.AutoMirrored.Filled.VolumeOff to Amber
     else -> Icons.AutoMirrored.Filled.CallReceived to InGreen
 }

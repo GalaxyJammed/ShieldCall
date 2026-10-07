@@ -59,6 +59,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.os.PowerManager
+import androidx.compose.ui.unit.Dp
 
 private val CallGreen = Color(0xFF2E7D32)
 private val CallAmber = Color(0xFFF9A825)
@@ -378,8 +379,8 @@ private fun InCallScreen(onFinish: () -> Unit) {
                         state == Call.STATE_HOLDING
                     ) { if (state == Call.STATE_HOLDING) call.unhold() else call.hold() }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
-                    ToggleButton("Add call", Icons.Default.Add, false) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
+                    ToggleButton("Add call", Icons.Default.Add, false, Modifier.padding(top = 6.dp), 12.dp) {
                         context.startActivity(
                             Intent(context, MainActivity::class.java)
                                 .putExtra("dial", "")
@@ -388,7 +389,7 @@ private fun InCallScreen(onFinish: () -> Unit) {
                     }
                     LabeledButton("End", Icons.Default.CallEnd, CallRed) { call.disconnect() }
                     if (held != null && canMerge) {
-                        ToggleButton("Merge", Icons.Default.CallMerge, false) {
+                        ToggleButton("Merge", Icons.Default.CallMerge, false, Modifier.padding(top = 6.dp), 12.dp) {
                             when {
                                 call.details.can(Call.Details.CAPABILITY_MERGE_CONFERENCE) -> call.mergeConference()
                                 held.details.can(Call.Details.CAPABILITY_MERGE_CONFERENCE) -> held.mergeConference()
@@ -636,14 +637,21 @@ fun LabeledButton(label: String, icon: ImageVector, color: Color, onClick: () ->
 }
 
 @Composable
-fun ToggleButton(label: String, icon: ImageVector, on: Boolean, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun ToggleButton(
+    label: String,
+    icon: ImageVector,
+    on: Boolean,
+    modifier: Modifier = Modifier,
+    labelGap: Dp = 4.dp,
+    onClick: () -> Unit
+) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         FilledIconToggleButton(
             checked = on,
             onCheckedChange = { onClick() },
             modifier = Modifier.size(60.dp)
         ) { Icon(icon, contentDescription = label) }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(labelGap))
         Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

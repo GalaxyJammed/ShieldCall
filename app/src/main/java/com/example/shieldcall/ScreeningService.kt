@@ -67,6 +67,15 @@ class ScreeningService : CallScreeningService() {
         val allowed = key != null && AllowList.contains(this, key)
         val quiet = !allowed && name == null && Prefs.quietNow(this)
 
+        val ruleHit = !listed && !prefixBlocked && (quiet || (matched && action != "popup"))
+        if (!allowed && ruleHit && action == "silence") {
+            Silenced.mark(number)
+            if (getSystemService(TelecomManager::class.java).defaultDialerPackage != packageName) {
+                logCall(dao, key, number, name, "Silenced")
+            }
+            respondToCall(details, CallResponse.Builder().setSilenceCall(true).build())
+            return
+        }
         if (!allowed && (listed || quiet || prefixBlocked || (matched && action != "popup"))) {
             if (!listed && !quiet && !prefixBlocked && action == "block" && key != null) dao.block(BlockedNumber(key, ""))
             logCall(dao, key, number, name, "Blocked")

@@ -22,7 +22,7 @@ fun QuietHoursCard() {
             SettingRow(
                 Icons.Default.Bedtime,
                 "Quiet hours",
-                "Reject calls from unsaved numbers during these hours. Saved contacts still ring.",
+                "Handle calls from unsaved numbers during these hours, using your 'When a call matches' choice. Saved contacts still ring.",
                 Prefs.quiet
             ) { Prefs.setQuiet(context, it) }
             if (Prefs.quiet) {

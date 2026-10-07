@@ -16,8 +16,8 @@ android {
         applicationId = "com.example.shieldcall"
         minSdk = 29
         targetSdk = 37
-        versionCode = 5
-        versionName = "2.2.0"
+        versionCode = 6
+        versionName = "2.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

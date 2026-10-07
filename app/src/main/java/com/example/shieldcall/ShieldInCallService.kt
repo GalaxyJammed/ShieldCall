@@ -111,6 +111,11 @@ class ShieldInCallService : InCallService() {
         Prefs.load(this)
         val ringing = call.state == Call.STATE_RINGING
         if (ringing) incomingCalls.add(call)
+        val callNumber = call.details.handle?.schemeSpecificPart.orEmpty()
+        if (ringing && Silenced.isSilenced(callNumber)) {
+            notifySilenced(call)
+            return
+        }
         val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
         val mini = ringing && CallManager.calls.size == 1 && !Prefs.fullScreen && !locked && Settings.canDrawOverlays(this)
         val intent = Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -156,16 +161,20 @@ class ShieldInCallService : InCallService() {
     }
 
     override fun onCallRemoved(call: Call) {
+        val removedNumber = call.details.handle?.schemeSpecificPart.orEmpty()
+        val wasSilenced = Silenced.isSilenced(removedNumber)
+        getSystemService(NotificationManager::class.java).cancel(5)
         val incoming = incomingCalls.remove(call)
         call.unregisterCallback(ongoingCallback)
         CallManager.remove(call)
         updateOngoing()
         getSystemService(NotificationManager::class.java).cancel(1)
-        logHistory(call, incoming)
-        if (call.details.disconnectCause?.code == DisconnectCause.MISSED) {
+        logHistory(call, incoming, wasSilenced)
+        if (call.details.disconnectCause?.code == DisconnectCause.MISSED && !wasSilenced) {
             notifyMissed(call.details.handle?.schemeSpecificPart.orEmpty())
             hideSystemMissed()
         }
+        Silenced.clear(removedNumber)
     }
 
     private fun notifyMissed(raw: String) {
@@ -227,7 +236,7 @@ class ShieldInCallService : InCallService() {
         }
     }
 
-    private fun logHistory(call: Call, incoming: Boolean) {
+    private fun logHistory(call: Call, incoming: Boolean, silenced: Boolean) {
         val details = call.details
         val raw = details.handle?.schemeSpecificPart.orEmpty()
         val key = Reports.key(raw, Reports.region(this)) ?: return
@@ -236,6 +245,7 @@ class ShieldInCallService : InCallService() {
         val code = details.disconnectCause?.code
         val status = when {
             !incoming -> "Outgoing"
+            silenced && connected <= 0 -> "Silenced"
             code == DisconnectCause.REJECTED -> "Declined"
             code == DisconnectCause.MISSED || connected <= 0 -> "Missed"
             else -> "Incoming"
@@ -261,5 +271,30 @@ class ShieldInCallService : InCallService() {
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         CallManager.audio(audioState)
         updateOngoing()
+    }
+
+    private fun notifySilenced(call: Call) {
+        val nm = getSystemService(NotificationManager::class.java)
+        nm.createNotificationChannel(NotificationChannel("silenced", "Silenced calls", NotificationManager.IMPORTANCE_LOW))
+        val raw = call.details.handle?.schemeSpecificPart.orEmpty()
+        CoroutineScope(Dispatchers.IO).launch {
+            val name = Reports.loadContactInfo(this@ShieldInCallService, raw).name?.takeIf { it.isNotBlank() }
+            val key = Reports.key(raw, Reports.region(this@ShieldInCallService))
+            val open = PendingIntent.getActivity(
+                this@ShieldInCallService, 5,
+                Intent(this@ShieldInCallService, InCallActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            )
+            val n = NotificationCompat.Builder(this@ShieldInCallService, "silenced")
+                .setSmallIcon(android.R.drawable.ic_lock_silent_mode)
+                .setContentTitle("Silenced call")
+                .setContentText(name ?: key?.let { "+$it" } ?: raw.ifBlank { "Hidden number" })
+                .setCategory(NotificationCompat.CATEGORY_CALL)
+                .setAutoCancel(true)
+                .setContentIntent(open)
+                .build()
+            nm.notify(5, n)
+        }
     }
 }

@@ -27,7 +27,7 @@ import org.json.JSONObject
 class BackupData(val blocked: List<BlockedNumber>, val favorites: Set<String>, val settings: JSONObject?)
 
 object Backup {
-    private val actions = setOf("hangup", "block", "popup")
+    private val actions = setOf("hangup", "block", "popup", "silence")
     private val types = setOf("number", "name", "country", "prefix")
     private val flags = listOf("business", "foreign", "unknown", "unsaved", "spamScam")
     private const val LIMIT = 5000

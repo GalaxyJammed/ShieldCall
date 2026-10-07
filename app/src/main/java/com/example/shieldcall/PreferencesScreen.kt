@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 
 private fun flagValue(key: String) = when (key) {
     "spamScam" -> Prefs.spamScam
@@ -85,6 +86,8 @@ fun PreferencesScreen() {
             ActionRow(Icons.Default.CallEnd, "Hang up immediately", "Reject the call without ringing", "hangup")
             HorizontalDivider()
             ActionRow(Icons.Default.Block, "Block the number", "Reject it and add it to blocked numbers", "block")
+            HorizontalDivider()
+            ActionRow(Icons.AutoMirrored.Filled.VolumeOff, "Silence the ring", "No sound or vibration. The call stays in your history", "silence")
         }
         Spacer(Modifier.height(24.dp))
         Section("Blocklist")
