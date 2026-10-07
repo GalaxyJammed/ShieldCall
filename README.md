@@ -2,7 +2,7 @@
 
 # ShieldCall - Know Who's Calling
 
-**A community-powered Android caller ID and spam protection app, built with Jetpack Compose**
+**A community-powered Android caller ID + reverse phone lookup + spam/scam call blocking app, built with Jetpack Compose**
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-100%25-7F52FF?logo=kotlin&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)
