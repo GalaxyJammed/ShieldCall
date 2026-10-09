@@ -34,7 +34,18 @@ object Tags {
         "other" to "Other"
     )
 
-    fun label(key: String): String = all.firstOrNull { it.first == key }?.second ?: key
+    val places = listOf(
+        "p_restaurant" to "Restaurant",
+        "p_government" to "Government office",
+        "p_health" to "Clinic or hospital",
+        "p_shop" to "Shop",
+        "p_delivery" to "Delivery or courier",
+        "p_bank" to "Bank branch",
+        "p_school" to "School or university",
+        "p_business" to "Other business"
+    )
+
+    fun label(key: String): String = (all + places).firstOrNull { it.first == key }?.second ?: key
 }
 
 object Notes {
@@ -51,22 +62,28 @@ object Notes {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TagDialog(type: String, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
+    val options = if (type == "safe") Tags.places else Tags.all
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         ShieldCard(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    if (type == "scam") "What kind of scam?" else "What kind of call?",
+                    when (type) {
+                        "scam" -> "What kind of scam?"
+                        "spam" -> "What kind of call?"
+                        else -> "What kind of place is it?"
+                    },
                     style = MaterialTheme.typography.titleLarge
                 )
                 Text(
-                    "Optional. It helps others recognise the call.",
+                    if (type == "safe") "Optional. Only if you know who this number belongs to."
+                    else "Optional. It helps others recognise the call.",
                     style = MaterialTheme.typography.bodySmall
                 )
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Tags.all.forEach { (key, label) ->
+                    options.forEach { (key, label) ->
                         AssistChip(onClick = { onPick(key) }, label = { Text(label) })
                     }
                 }

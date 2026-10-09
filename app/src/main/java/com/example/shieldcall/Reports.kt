@@ -26,7 +26,8 @@ data class Review(
     val authorName: String = "Anonymous User",
     val likes: Long = 0,
     val flags: Long = 0,
-    val liked: Boolean = false
+    val liked: Boolean = false,
+    val level: Int = 0
 )
 data class ReviewPage(val reviews: List<Review>, val cursor: DocumentSnapshot?, val more: Boolean)
 data class Info(
@@ -118,7 +119,7 @@ object Reports {
         val currentTime = System.currentTimeMillis()
         val doc = db.collection("reports").document(tail)
         val userDocRef = db.collection("users").document(uid)
-        val usedTag = tag.takeIf { type != "safe" }
+        val usedTag = tag
         val voteData = mutableMapOf<String, Any>("type" to type, "time" to currentTime, "appVersion" to versionCode(context))
         if (usedTag != null) voteData["tag"] = usedTag
         val counters = mutableMapOf<String, Any>(
@@ -126,7 +127,15 @@ object Reports {
             "scam" to FieldValue.increment(delta("scam", type, previous)),
             "safe" to FieldValue.increment(delta("safe", type, previous))
         )
-        val tagChanges = tagDeltas(usedTag, if (previous != null) previousTag else null)
+        var oldTag: String? = null
+        if (previous != null) {
+            val snap = doc.get().await()
+            if ((snap.getLong(previous) ?: 0L) < 1L) {
+                throw IllegalStateException("This number's totals are out of sync, so the vote can't be changed.")
+            }
+            oldTag = previousTag?.takeIf { (tagCounts(snap)[it] ?: 0L) > 0L }
+        }
+        val tagChanges = tagDeltas(usedTag, oldTag)
         if (tagChanges.isNotEmpty()) counters["tags"] = tagChanges
         val batch = db.batch()
         batch.set(doc.collection("votes").document(uid), voteData)
@@ -167,7 +176,12 @@ object Reports {
             "scam" to FieldValue.increment(delta("scam", null, previous)),
             "safe" to FieldValue.increment(delta("safe", null, previous))
         )
-        val tagChanges = tagDeltas(null, previousTag)
+        val snap = doc.get().await()
+        if ((snap.getLong(previous) ?: 0L) < 1L) {
+            throw IllegalStateException("This number's totals are out of sync, so the vote can't be removed.")
+        }
+        val oldTag = previousTag?.takeIf { (tagCounts(snap)[it] ?: 0L) > 0L }
+        val tagChanges = tagDeltas(null, oldTag)
         if (tagChanges.isNotEmpty()) counters["tags"] = tagChanges
         batch.set(doc, counters, SetOptions.merge())
         batch.commit().await()
@@ -200,7 +214,8 @@ object Reports {
             "text" to text,
             "authorName" to name,
             "appVersion" to versionCode(context),
-            "time" to FieldValue.serverTimestamp()
+            "time" to FieldValue.serverTimestamp(),
+            "level" to Badges.level(SpamDb.get(context).dao().identifiedTotal().toLong())
         )
         if (ref.get().await().exists()) ref.update(data).await()
         else {
@@ -263,7 +278,7 @@ object Reports {
                     it.getString("authorName") ?: "Anonymous User",
                     it.getLong("likes") ?: 0,
                     it.getLong("flags") ?: 0,
-                    "${tail}_${it.id}" in liked
+                    "${tail}_${it.id}" in liked,(it.getLong("level") ?: 0L).toInt()
                 )
             }
             .filter { it.flags < 3 || it.mine }
@@ -555,4 +570,8 @@ object Reports {
         }
         return out
     }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun tagCounts(snap: DocumentSnapshot): Map<String, Long> =
+        (snap.get("tags") as? Map<String, Any>).orEmpty().mapValues { (it.value as? Number)?.toLong() ?: 0L }
 }

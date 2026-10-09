@@ -304,6 +304,7 @@ fun OverlayCard(
     var location by remember { mutableStateOf<String?>(null) }
     var photoUri by remember { mutableStateOf<String?>(null) }
     var showDeclineReason by remember { mutableStateOf(false) }
+    var hint by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(number, contactName) {
         if (number.isNotBlank()) {
@@ -332,10 +333,12 @@ fun OverlayCard(
     LaunchedEffect(number) {
         if (number.isNotBlank()) {
             withContext(Dispatchers.IO) {
+                hint = CallerHint.fromNumber(context, number)
                 try {
                     val region = Reports.region(context)
                     val tail = Reports.key(number, region) ?: number
                     val info = Reports.load(tail)
+                    hint = CallerHint.hint(context, number, info)
                     existingVote = info.myVote ?: SpamDb.get(context).dao().entry(tail)?.takeIf { it.source == "mine" }?.type
 
                     val total = info.spam + info.scam + info.safe
@@ -395,6 +398,9 @@ fun OverlayCard(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
+                            if (resolvedName.isNullOrBlank()) hint?.let {
+                                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            }
                         }
                     }
                 }
@@ -476,6 +482,7 @@ fun FullScreenCallCard(
     var location by remember { mutableStateOf<String?>(null) }
     var photoUri by remember { mutableStateOf<String?>(null) }
     var showDeclineReason by remember { mutableStateOf(false) }
+    var hint by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(number, contactName) {
         if (number.isNotBlank()) {
@@ -504,10 +511,12 @@ fun FullScreenCallCard(
     LaunchedEffect(number) {
         if (number.isNotBlank()) {
             withContext(Dispatchers.IO) {
+                hint = CallerHint.fromNumber(context, number)
                 try {
                     val region = Reports.region(context)
                     val tail = Reports.key(number, region) ?: number
                     val info = Reports.load(tail)
+                    hint = CallerHint.hint(context, number, info)
                     existingVote = info.myVote ?: SpamDb.get(context).dao().entry(tail)?.takeIf { it.source == "mine" }?.type
 
                     val total = info.spam + info.scam + info.safe
@@ -566,6 +575,9 @@ fun FullScreenCallCard(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.primary
                         )
+                        if (resolvedName.isNullOrBlank()) hint?.let {
+                            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
 

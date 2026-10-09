@@ -214,6 +214,9 @@ private fun InCallScreen(onFinish: () -> Unit) {
     }
 
     val i = info
+    val hint = remember(number, info, contact.name) {
+        if (contact.name.isNullOrBlank() && !isVoicemail && !isEmergency) CallerHint.hint(context, number, info) else null
+    }
     val total = (i?.spam ?: 0) + (i?.scam ?: 0) + (i?.safe ?: 0)
     val score = if (i != null && total > 0) ((i.safe * 100) / total).toInt() else null
     val rankColor = when {
@@ -284,6 +287,7 @@ private fun InCallScreen(onFinish: () -> Unit) {
                 }
             }
             country?.let { Text("${it.flag} ${it.name}", style = MaterialTheme.typography.bodyLarge) }
+            hint?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary) }
             val simLabel = remember(call) {
                 if (SimChoice.accounts(context).size > 1) SimChoice.label(context, call.details.accountHandle) else null
             }

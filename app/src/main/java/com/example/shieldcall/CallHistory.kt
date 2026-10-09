@@ -67,6 +67,13 @@ fun RecentCalls(modifier: Modifier, onLookup: (String) -> Unit) {
     val blocked by dao.blockedFlow().collectAsState(emptyList())
     val blockedKeys = remember(blocked) { blocked.map { it.number }.toSet() }
     var filter by rememberSaveable { mutableStateOf("All") }
+    val requestedFilter = TabRequest.historyFilter
+    LaunchedEffect(requestedFilter) {
+        if (requestedFilter != null) {
+            filter = requestedFilter
+            TabRequest.historyFilter = null
+        }
+    }
     var confirmClear by remember { mutableStateOf(false) }
     var pendingCall by remember { mutableStateOf<String?>(null) }
     val guarded = rememberGuardedCall { SimChoice.placeNumber(context, it) }
@@ -180,7 +187,13 @@ private fun CallRow(
     val title = g.name.ifBlank { "+${g.key}" } + if (g.count > 1) " ×${g.count}" else ""
     val subtitle = buildString {
         append(g.status)
-        if (g.duration > 0 && g.count == 1) append(" · %d:%02d".format(g.duration / 60, g.duration % 60))
+        if (g.duration > 0 && g.count == 1) {
+            if (g.status == "Missed" || g.status == "Silenced" || g.status == "Declined") {
+                append(" · rang %d:%02d".format(g.duration / 60, g.duration % 60))
+            } else {
+                append(" · %d:%02d".format(g.duration / 60, g.duration % 60))
+            }
+        }
         append(" · ")
         append(DateUtils.getRelativeTimeSpanString(g.time))
     }

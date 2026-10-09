@@ -58,6 +58,15 @@ object HomeRequest {
 object TabRequest {
     var tab by mutableStateOf<Int?>(null)
     var contactsMode by mutableStateOf<Int?>(null)
+    var historyFilter by mutableStateOf<String?>(null)
+}
+
+object NumberRequest {
+    var number by mutableStateOf<String?>(null)
+}
+
+object ReturnRequest {
+    var listType by mutableStateOf<String?>(null)
 }
 
 object UiState {

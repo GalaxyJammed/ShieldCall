@@ -59,6 +59,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
+import com.google.firebase.firestore.FirebaseFirestoreException
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -73,6 +74,7 @@ private fun colorOf(type: String) = when (type) {
 @Composable
 fun InfoScreen(number: String, onBack: () -> Unit) {
     BackHandler(onBack = onBack)
+    var errorText by remember { mutableStateOf<String?>(null) }
     val tail = number
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -146,9 +148,12 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
         scope.launch {
             try {
                 block()
+                failed = false
+                errorText = null
                 reload++
             } catch (e: Exception) {
                 Log.e("Shield", e.toString())
+                errorText = describe(e)
                 failed = true
             }
         }
@@ -247,7 +252,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
             )
         }
         LazyColumn(
-            Modifier.fillMaxSize().scrollbar(listState).padding(horizontal = 24.dp),
+            Modifier.fillMaxSize().padding(horizontal = 24.dp).scrollbar(listState),
             state = listState,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -307,6 +312,11 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                if (contactInfo?.name.isNullOrBlank()) {
+                                    CallerHint.hint(context, tail, info)?.let {
+                                        Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
                             }
                             if (contactInfo?.name.isNullOrBlank()) {
                                 TextButton(onClick = { adding = true }, contentPadding = PaddingValues(0.dp)) {
@@ -361,10 +371,13 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text(
-                                    c.status + if (c.duration > 0) " · %d:%02d".format(c.duration / 60, c.duration % 60) else "",
-                                    modifier = Modifier.weight(1f)
-                                )
+                                val durationText = when {
+                                    c.duration <= 0 -> ""
+                                    c.status == "Missed" || c.status == "Silenced" || c.status == "Declined" ->
+                                        " · rang %d:%02d".format(c.duration / 60, c.duration % 60)
+                                    else -> " · %d:%02d".format(c.duration / 60, c.duration % 60)
+                                }
+                                Text(c.status + durationText, modifier = Modifier.weight(1f))
                                 Text(
                                     DateUtils.getRelativeTimeSpanString(c.time).toString(),
                                     style = MaterialTheme.typography.bodySmall,
@@ -377,7 +390,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
             }
             item { NoteCard(tail) }
             if (failed) item {
-                Text("Couldn't reach the server. Check your connection.", color = MaterialTheme.colorScheme.error)
+                Text(errorText ?: "Couldn't reach the server. Check your connection.", color = MaterialTheme.colorScheme.error)
             }
             if (!signed) {
                 item {
@@ -397,13 +410,11 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                 if (!failed) item { CircularProgressIndicator() }
             } else {
                 item { TrustCard(i, tail) }
+                item { DisputeButton(tail) }
                 item {
                     VoteRow(
                         mine = i.myVote,
-                        onVote = { type ->
-                            if (type == "safe") act { Reports.report(context, tail, type, i.myVote, null, i.myTag) }
-                            else pendingVote = type
-                        },
+                        onVote = { type -> pendingVote = type },
                         onRemove = { act { Reports.removeVote(context, tail, i.myVote!!, i.myTag); reviews = null } }
                     )
                 }
@@ -549,10 +560,18 @@ private fun TrustCard(i: Info, tail: String) {
                     color = if (score >= 60) Green else if (score >= 30) Amber else Red
                 )
                 Text("Based on $total votes")
-                val top = i.tags.entries.filter { it.value > 0 }.sortedByDescending { it.value }.take(3)
-                if (top.isNotEmpty()) {
+                val scamTags = i.tags.entries.filter { it.value > 0 && !it.key.startsWith("p_") }.sortedByDescending { it.value }.take(3)
+                val placeTags = i.tags.entries.filter { it.value > 0 && it.key.startsWith("p_") }.sortedByDescending { it.value }.take(3)
+                if (placeTags.isNotEmpty()) {
                     Text(
-                        "Most reported as: " + top.joinToString(", ") { "${Tags.label(it.key)} (${it.value})" },
+                        "Looks like: " + placeTags.joinToString(", ") { "${Tags.label(it.key)} (${it.value})" },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                if (scamTags.isNotEmpty()) {
+                    Text(
+                        "Most reported as: " + scamTags.joinToString(", ") { "${Tags.label(it.key)} (${it.value})" },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -648,7 +667,11 @@ private fun ReviewCard(r: Review, onLike: () -> Unit, onFlag: () -> Unit, onDele
                 color = colorOf(r.type),
                 style = MaterialTheme.typography.labelLarge
             )
-            Text(r.authorName, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                listOfNotNull(r.authorName, Badges.label(r.level)).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             if (r.text.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Text(r.text)
@@ -700,5 +723,15 @@ private fun QuickAction(icon: ImageVector, label: String, active: Boolean, onCli
     val tint = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
     IconButton(onClick = onClick) {
         Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(24.dp))
+    }
+}
+
+private fun describe(e: Exception): String {
+    if (e is IllegalStateException) return e.message ?: "Something went wrong."
+    val code = (e as? FirebaseFirestoreException)?.code
+    return when (code) {
+        FirebaseFirestoreException.Code.UNAVAILABLE -> "Couldn't reach the server. Check your connection."
+        FirebaseFirestoreException.Code.PERMISSION_DENIED -> "The server refused this change (permission denied)."
+        else -> "Something went wrong" + (code?.let { " ($it)" } ?: "") + "."
     }
 }

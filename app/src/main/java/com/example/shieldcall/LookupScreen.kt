@@ -81,7 +81,7 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
     val recents = Prefs.recentLookups
 
     val scroll = rememberScrollState()
-    Column(Modifier.fillMaxSize().scrollbar(scroll, UiState.bottomInset).verticalScroll(scroll).padding(horizontal = 24.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).scrollbar(scroll, UiState.bottomInset).verticalScroll(scroll)) {
         UpdateCard()
         if (Update.latest != null) Spacer(Modifier.height(16.dp))
         ShieldCard(Modifier.fillMaxWidth()) {
@@ -148,7 +148,13 @@ fun LookupScreen(onSearch: (String) -> Unit, onSettings: () -> Unit) {
                 ) { Text("Paste number from clipboard") }
             }
         }
-
+        Spacer(Modifier.height(16.dp))
+        MissedCallStrip(onSeeAll = {
+            TabRequest.contactsMode = 1
+            TabRequest.historyFilter = "Missed"
+            TabRequest.tab = 1
+        })
+        Spacer(Modifier.height(16.dp))
         if (recents.isNotEmpty()) {
             Spacer(Modifier.height(24.dp))
             Text(

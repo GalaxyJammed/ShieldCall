@@ -18,20 +18,26 @@ data class Release(val version: String, val notes: List<String>)
 object Changelog {
     val releases = listOf(
         Release(
+            "2.4.0",
+            listOf(
+                "Added 'Filters' in \"Contacts\" -> \"Recent Calls\" so you can better list your calls (Incoming, Outgoing etc)",
+                "Added Tags for \"Safe\" voting option so you can immediately show what type of a number it is",
+                "Added 'Landline Hints' to unknown numbers showing country info from where the number is from in \"Number Details\"",
+                "When tapping an \"Identified Calls\" card it now shows you the numbers you voted \"Spam, Scam, Safe\" so you can easily view/update or even change your vote",
+                "Shows how long the missed call you received was to check if it was an instant hang-up or not",
+                "Added a \"Missed Calls\" card on the Lookup screen so you can easily check which calls you missed in the day and call them back if you wish",
+                "Added \"Wrongly marked as {x}\" in number details so you can report the entire vote of the number as false",
+                "Added badges for 10, 50, 150 votes that shows up in your profile for fun"
+
+
+            )
+        ),
+        Release(
             "2.3.0",
             listOf(
                 "Added 'Silence the ring' in \"Security\". A call that is \"Silenced\" will still ring but you won't hear it ring or vibrate and it will go to your call history like normal",
                 "The Red warning card when you are on an outdated version now installs the apk right on your device instead of forcing you to go through the downloads yourself",
                 "Fixed \"Add Call\" button being off-center in the Dialer"
-            )
-        ),
-        Release(
-            "2.2.0",
-            listOf(
-                "Added 'Recent Contacts' in the Dialer so you can easily re-dial a previous contact",
-                "Made the \"Dial\" screen smarter as it now attempts to suggest you upto 3 numbers that you are about to dial before you enter the whole number",
-                "Added shortcuts in \"Number Details\" for \"Call, Message, Favorite, Block/Unblock, Edit Contact\"",
-                "Added \"Call History\" in \"Number Details\" that shows the last 5 calls"
             )
         )
     )

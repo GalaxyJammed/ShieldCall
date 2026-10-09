@@ -54,12 +54,13 @@ data class ContactItem(
     val raw: String,
     val photo: String?,
     val extra: String? = null,
-    val incoming: Boolean? = null
+    val incoming: Boolean? = null,
+    val aliases: List<String> = emptyList()
 )
 
-fun loadContacts(context: Context): List<ContactItem> {
+internal fun loadContacts(context: Context): List<ContactItem> {
     val region = Reports.region(context)
-    val out = LinkedHashMap<String, ContactItem>()
+    val groups = LinkedHashMap<String, MutableList<ContactItem>>()
     context.contentResolver.query(
         Phone.CONTENT_URI,
         arrayOf(Phone.DISPLAY_NAME, Phone.NUMBER, Phone.PHOTO_THUMBNAIL_URI),
@@ -68,13 +69,19 @@ fun loadContacts(context: Context): List<ContactItem> {
         "${Phone.DISPLAY_NAME} COLLATE NOCASE ASC"
     )?.use { c ->
         while (c.moveToNext()) {
-            val name = c.getString(0).orEmpty()
+            val name = c.getString(0).orEmpty().trim()
             val raw = c.getString(1).orEmpty()
             val key = Reports.key(raw, region) ?: continue
-            out.putIfAbsent(key, ContactItem(name, key, raw, c.getString(2)))
+            groups.getOrPut(key) { ArrayList() }.add(ContactItem(name, key, raw, c.getString(2)))
         }
     }
-    return out.values.toList()
+    return groups.values.map { list ->
+        val primary = list.firstOrNull { it.photo != null } ?: list.first()
+        val others = list.map { it.name }
+            .filter { it.isNotBlank() && !it.equals(primary.name, ignoreCase = true) }
+            .distinctBy { it.lowercase() }
+        primary.copy(aliases = others)
+    }.sortedBy { it.name.lowercase() }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -147,7 +154,9 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
         else -> favItems
     }
     val shown = remember(list, query, mode) {
-        if (mode == 0) list?.filter { it.name.contains(query, true) || it.raw.contains(query) }.orEmpty()
+        if (mode == 0) list?.filter { c ->
+            c.name.contains(query, true) || c.raw.contains(query) || c.aliases.any { it.contains(query, true) }
+        }.orEmpty()
         else list.orEmpty()
     }
 
@@ -259,6 +268,15 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
                                     Spacer(Modifier.width(4.dp))
                                 }
                                 Text(c.extra ?: c.raw, style = MaterialTheme.typography.bodySmall)
+                            }
+                            if (c.aliases.isNotEmpty()) {
+                                Text(
+                                    "Also saved as ${c.aliases.joinToString(", ")}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
                             }
                         }
                         if (mode != 1) {

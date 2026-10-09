@@ -164,6 +164,9 @@ interface SpamDao {
 
     @Query("SELECT * FROM calls WHERE number = :number ORDER BY time DESC LIMIT 5")
     fun callsFor(number: String): Flow<List<CallEntry>>
+
+    @Query("SELECT COUNT(*) FROM calls WHERE status = 'Missed' AND time >= :since")
+    fun missedCountSince(since: Long): Flow<Int>
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {

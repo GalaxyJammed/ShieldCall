@@ -68,6 +68,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         return
     }
     val context = LocalContext.current
+    val level = remember { Badges.levelFor(context) }
     val scope = rememberCoroutineScope()
 
     var showPinDialog by remember { mutableStateOf(false) }
@@ -144,6 +145,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
+                            ContributorBadge(level)
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 text = userEmail ?: "Verified Account",
@@ -386,7 +388,8 @@ fun SettingsScreen(onBack: () -> Unit) {
             userDisplayName = userDisplayName,
             userEmail = userEmail,
             photoUrl = userPhotoUrl,
-            onDismiss = { showProfileDialog = false }
+            onDismiss = { showProfileDialog = false },
+            level = level
         )
     }
 
@@ -509,7 +512,8 @@ fun UserProfileDialog(
     userDisplayName: String?,
     userEmail: String?,
     photoUrl: String?,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    level: Int = 0
 ) {
     val context = LocalContext.current
     var anonymous by remember { mutableStateOf(Prefs.anonymousReviews) }

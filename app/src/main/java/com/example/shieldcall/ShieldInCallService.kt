@@ -35,6 +35,8 @@ class ShieldInCallService : InCallService() {
         }
     }
 
+    private val ringStart = HashMap<Call, Long>()
+
     private fun updateOngoing() {
         val nm = getSystemService(NotificationManager::class.java)
         val gen = ++ongoingGen
@@ -111,6 +113,7 @@ class ShieldInCallService : InCallService() {
         Prefs.load(this)
         val ringing = call.state == Call.STATE_RINGING
         if (ringing) incomingCalls.add(call)
+        if (ringing) ringStart[call] = System.currentTimeMillis()
         val callNumber = call.details.handle?.schemeSpecificPart.orEmpty()
         if (ringing && Silenced.isSilenced(callNumber)) {
             notifySilenced(call)
@@ -165,11 +168,12 @@ class ShieldInCallService : InCallService() {
         val wasSilenced = Silenced.isSilenced(removedNumber)
         getSystemService(NotificationManager::class.java).cancel(5)
         val incoming = incomingCalls.remove(call)
+        val ring = ringStart.remove(call)?.let { ((System.currentTimeMillis() - it) / 1000).toInt() } ?: 0
         call.unregisterCallback(ongoingCallback)
         CallManager.remove(call)
         updateOngoing()
         getSystemService(NotificationManager::class.java).cancel(1)
-        logHistory(call, incoming, wasSilenced)
+        logHistory(call, incoming, wasSilenced, ring)
         if (call.details.disconnectCause?.code == DisconnectCause.MISSED && !wasSilenced) {
             notifyMissed(call.details.handle?.schemeSpecificPart.orEmpty())
             hideSystemMissed()
@@ -181,13 +185,16 @@ class ShieldInCallService : InCallService() {
         CoroutineScope(Dispatchers.IO).launch {
             val key = Reports.key(raw, Reports.region(this@ShieldInCallService))
             val name = Reports.loadContactInfo(this@ShieldInCallService, raw).name?.takeIf { it.isNotBlank() }
+            var loaded: Info? = null
             val ranking = try {
                 val i = if (key != null && Reports.signedIn()) Reports.load(key) else null
+                loaded = i
                 val total = (i?.spam ?: 0) + (i?.scam ?: 0) + (i?.safe ?: 0)
                 if (i != null && total > 0) "${(i.safe * 100) / total}%" else "Unknown"
             } catch (e: Exception) {
                 "Unknown"
             }
+            val hint = if (name == null) CallerHint.hint(this@ShieldInCallService, raw, loaded) else null
             val number = if (key != null) "+$key" else raw.ifBlank { "Hidden number" }
             val tag = key ?: raw
             val callBack = PendingIntent.getActivity(
@@ -212,7 +219,7 @@ class ShieldInCallService : InCallService() {
                 .setSmallIcon(android.R.drawable.sym_call_missed)
                 .setContentTitle(name ?: "Unknown Number")
                 .setContentText(first)
-                .setStyle(NotificationCompat.BigTextStyle().bigText("$first\n$second"))
+                .setStyle(NotificationCompat.BigTextStyle().bigText("$first\n$second" + (hint?.let { "\n$it" } ?: "")))
                 .setCategory(NotificationCompat.CATEGORY_MISSED_CALL)
                 .setAutoCancel(true)
                 .setContentIntent(pi)
@@ -236,13 +243,17 @@ class ShieldInCallService : InCallService() {
         }
     }
 
-    private fun logHistory(call: Call, incoming: Boolean, silenced: Boolean) {
+    private fun logHistory(call: Call, incoming: Boolean, silenced: Boolean, ring: Int) {
         val details = call.details
         val raw = details.handle?.schemeSpecificPart.orEmpty()
         val key = Reports.key(raw, Reports.region(this)) ?: return
         val connected = details.connectTimeMillis
-        val seconds = if (connected > 0) ((System.currentTimeMillis() - connected) / 1000).toInt() else 0
         val code = details.disconnectCause?.code
+        val seconds = when {
+            connected > 0 -> ((System.currentTimeMillis() - connected) / 1000).toInt()
+            incoming -> ring
+            else -> 0
+        }
         val status = when {
             !incoming -> "Outgoing"
             silenced && connected <= 0 -> "Silenced"
@@ -267,7 +278,7 @@ class ShieldInCallService : InCallService() {
         }
     }
 
-    @Suppress("DEPRECATION")
+    @Deprecated("Deprecation warning")
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         CallManager.audio(audioState)
         updateOngoing()

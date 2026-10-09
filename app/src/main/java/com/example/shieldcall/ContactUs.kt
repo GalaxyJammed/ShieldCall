@@ -121,7 +121,7 @@ fun ContactUsScreen(onBack: () -> Unit) {
     }
 
     val scroll = rememberScrollState()
-    Column(Modifier.fillMaxSize().scrollbar(scroll).verticalScroll(scroll).padding(horizontal = 24.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).scrollbar(scroll).verticalScroll(scroll)) {
         ShieldCard(Modifier.fillMaxWidth()) {
             Box(Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 4.dp)) {
                 IconButton(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart)) {

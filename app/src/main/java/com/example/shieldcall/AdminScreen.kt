@@ -59,7 +59,7 @@ fun AdminScreen(onBack: () -> Unit) {
     }
 
     LazyColumn(
-        Modifier.fillMaxSize().scrollbar(listState).padding(horizontal = 24.dp),
+        Modifier.fillMaxSize().padding(horizontal = 24.dp).scrollbar(listState),
         state = listState,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -117,6 +117,7 @@ fun AdminScreen(onBack: () -> Unit) {
                     }
                 }
             }
+            item { DisputesSection() }
             item {
                 ShieldCard(Modifier.fillMaxWidth()) {
                     Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

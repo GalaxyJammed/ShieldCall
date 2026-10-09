@@ -29,7 +29,7 @@ fun Modifier.scrollbar(state: ScrollState, bottomInset: Dp = 0.dp): Modifier {
             val w = 4.dp.toPx()
             drawRoundRect(
                 color = color.copy(alpha = alpha),
-                topLeft = Offset(size.width - w - 2.dp.toPx(), top),
+                topLeft = Offset(size.width + 10.dp.toPx(), top),
                 size = Size(w, thumb),
                 cornerRadius = CornerRadius(w / 2)
             )
@@ -57,7 +57,7 @@ fun Modifier.scrollbar(state: LazyListState, vertical: Boolean = true, bottomIns
             if (vertical) {
                 drawRoundRect(
                     color = color.copy(alpha = alpha),
-                    topLeft = Offset(size.width - w - 2.dp.toPx(), pos),
+                    topLeft = Offset(size.width + 10.dp.toPx(), pos),
                     size = Size(w, thumb),
                     cornerRadius = CornerRadius(w / 2)
                 )

@@ -46,6 +46,11 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import com.google.i18n.phonenumbers.PhoneNumberUtil
+import android.text.format.DateUtils
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+
 
 private val AmberColor = Color(0xFFF9A825)
 private val RedColor = Color(0xFFC62828)
@@ -102,6 +107,8 @@ fun StatsScreen(onNumber: (String) -> Unit = {}) {
     }
     val barDataList = allBars[viewMode].orEmpty()
 
+    var openNumber by remember { mutableStateOf<String?>(null) }
+
     fun shareStats() {
         val shareText = "🛡️ My ShieldCall Stats:\n" +
                 "• $spamCount Spam calls identified\n" +
@@ -118,12 +125,13 @@ fun StatsScreen(onNumber: (String) -> Unit = {}) {
     }
 
     val scroll = rememberScrollState()
+
     Column(
         Modifier
             .fillMaxSize()
+            .padding(horizontal = 24.dp)
             .scrollbar(scroll, UiState.bottomInset)
             .verticalScroll(scroll)
-            .padding(horizontal = 24.dp)
     ) {
         ShieldCard(Modifier.fillMaxWidth()) {
             Box(
@@ -177,9 +185,17 @@ fun StatsScreen(onNumber: (String) -> Unit = {}) {
                 )
                 Spacer(Modifier.height(12.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatBox("Spam", spamCount, AmberColor, Icons.Default.ReportProblem, Modifier.weight(1f))
-                    StatBox("Scam", scamCount, RedColor, Icons.Default.Gavel, Modifier.weight(1f))
-                    StatBox("Safe", safeCount, GreenColor, Icons.Default.CheckCircle, Modifier.weight(1f))
+                    StatBox("Spam", spamCount, AmberColor, Icons.Default.ReportProblem, Modifier.weight(1f).clickable { ListRequest.type = "spam" })
+                    StatBox("Scam", scamCount, RedColor, Icons.Default.Gavel, Modifier.weight(1f).clickable { ListRequest.type = "scam" })
+                    StatBox("Safe", safeCount, GreenColor, Icons.Default.CheckCircle, Modifier.weight(1f).clickable { ListRequest.type = "safe" })
+                }
+                if (totalIdentified > 0) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Tap on a card to view the numbers",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }
@@ -354,7 +370,6 @@ fun StatsScreen(onNumber: (String) -> Unit = {}) {
                 }
             }
         }
-
         Spacer(Modifier.height(96.dp))
     }
 

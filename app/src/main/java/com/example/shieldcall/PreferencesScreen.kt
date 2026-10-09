@@ -54,7 +54,7 @@ fun PreferencesScreen() {
     }
 
     val scroll = rememberScrollState()
-    Column(Modifier.fillMaxSize().scrollbar(scroll, UiState.bottomInset).verticalScroll(scroll).padding(horizontal = 24.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp).scrollbar(scroll, UiState.bottomInset).verticalScroll(scroll)) {
         ScreenTitle("Security")
         Spacer(Modifier.height(16.dp))
         Section("Block calls from")
