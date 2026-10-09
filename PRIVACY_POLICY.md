@@ -56,7 +56,7 @@ You can also open an issue on this repository to ask for help with deletion.
 ## Sharing
 
 ShieldCall does not sell your data and has no ads. Data is processed by Google (Firebase) and GitHub as described above, under their own privacy policies.
-Signed-in users appear on a public leaderboard showing their display name (or ‘Anonymous User’ if you chose anonymous) and how many numbers they’ve voted on. Reviews show a contributor level. Wrong-label reports are visible to ShieldCall moderators
+Reviews show a contributor level. Wrong-label reports are visible to ShieldCall moderators
 
 ## Children
 
