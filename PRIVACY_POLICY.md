@@ -1,6 +1,6 @@
 # ShieldCall Privacy Policy
 
-_Last updated: October 3, 2026_
+_Last updated: October 9, 2026_
 
 ShieldCall is a free, open-source Android app that identifies callers, lets people rate phone numbers, and blocks unwanted calls. This page explains what data the app handles and why.
 
@@ -56,6 +56,7 @@ You can also open an issue on this repository to ask for help with deletion.
 ## Sharing
 
 ShieldCall does not sell your data and has no ads. Data is processed by Google (Firebase) and GitHub as described above, under their own privacy policies.
+Reviews show a contributor level. Wrong-label reports are visible to ShieldCall moderators
 
 ## Children
 

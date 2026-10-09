@@ -71,6 +71,7 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 - Choose what happens when a call matches:
   - **Hang up immediately**
   - **Block the number** and add it to your blocked list
+  - **Silence the number** so it goes through but doesn't ring or vibrate letting it go into call history without bothering you
 - Block every unsaved contact depending on the time of day through **Quiet Hours**
 - Saved contacts are never caught by the category rules
 - **Unblock** any contact whenever you want in the click of a button
