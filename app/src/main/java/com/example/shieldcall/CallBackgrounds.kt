@@ -110,7 +110,7 @@ fun CallBackgroundRow(key: String) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Call background", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        EditSection("Call background")
         Text(
             "Shown on the call screen when this contact calls. It replaces your default background.",
             style = MaterialTheme.typography.bodySmall,

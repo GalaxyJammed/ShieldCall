@@ -26,8 +26,33 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import java.text.DateFormatSymbols
+import java.util.Calendar
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 object Birthdays {
+    fun monthName(m: Int): String =
+        java.text.DateFormatSymbols.getInstance(Locale.getDefault()).months[m - 1]
+
+    fun label(date: String): String {
+        val md = date.takeLast(5)
+        val m = md.substring(0, 2).toIntOrNull() ?: return date
+        val d = md.substring(3, 5).toIntOrNull() ?: return date
+        return "$d ${monthName(m)}"
+    }
+
     fun isToday(date: String?): Boolean =
         !date.isNullOrBlank() && date.takeLast(5) == SimpleDateFormat("MM-dd", Locale.US).format(Date())
 
@@ -91,8 +116,7 @@ object Birthdays {
     }
 }
 
-/** Birthday row for the edit-contact form. Saves right away. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BirthdayRow(lookupKey: String) {
     val context = LocalContext.current
@@ -100,7 +124,8 @@ fun BirthdayRow(lookupKey: String) {
     var current by remember { mutableStateOf<String?>(null) }
     var loaded by remember { mutableStateOf(false) }
     var picking by remember { mutableStateOf(false) }
-    val pickerState = rememberDatePickerState()
+    var month by remember { mutableIntStateOf(1) }
+    var day by remember { mutableIntStateOf(1) }
 
     LaunchedEffect(lookupKey) {
         current = withContext(Dispatchers.IO) { Birthdays.forLookup(context, lookupKey) }
@@ -108,14 +133,21 @@ fun BirthdayRow(lookupKey: String) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("Birthday", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+        EditSection("Birthday")
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                if (!loaded) "…" else current ?: "Not set",
+                if (!loaded) "…" else current?.let { Birthdays.label(it) } ?: "Not set",
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f)
             )
-            OutlinedButton(onClick = { picking = true }) { Text("Set") }
+            OutlinedButton(onClick = {
+                current?.let {
+                    val md = it.takeLast(5)
+                    month = md.substring(0, 2).toIntOrNull() ?: 1
+                    day = md.substring(3, 5).toIntOrNull() ?: 1
+                }
+                picking = true
+            }) { Text("Set") }
             if (current != null) {
                 TextButton(onClick = {
                     scope.launch {
@@ -128,25 +160,21 @@ fun BirthdayRow(lookupKey: String) {
     }
 
     if (picking) {
-        DatePickerDialog(
-            onDismissRequest = { picking = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    picking = false
-                    val ms = pickerState.selectedDateMillis ?: return@TextButton
-                    val date = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                        .apply { timeZone = TimeZone.getTimeZone("UTC") }
-                        .format(Date(ms))
-                    scope.launch {
-                        withContext(Dispatchers.IO) { Birthdays.set(context, lookupKey, date) }
-                        current = date
-                    }
-                }) { Text("OK") }
+        YearlyCalendarDialog(
+            initialMonth = month,
+            initialDay = day,
+            onSave = { m, d ->
+                picking = false
+                month = m
+                day = d
+                val date = "--%02d-%02d".format(m, d)
+                scope.launch {
+                    withContext(Dispatchers.IO) { Birthdays.set(context, lookupKey, date) }
+                    current = date
+                }
             },
-            dismissButton = { TextButton(onClick = { picking = false }) { Text("Cancel") } }
-        ) {
-            DatePicker(state = pickerState)
-        }
+            onDismiss = { picking = false }
+        )
     }
 }
 
@@ -210,4 +238,99 @@ object BirthdayCheck {
         }
         nm.notify("bday$contactId", 6, b.build())
     }
+}
+
+@Composable
+fun YearlyCalendarDialog(
+    initialMonth: Int,
+    initialDay: Int,
+    onSave: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var shown by remember { mutableIntStateOf(initialMonth) }
+    var selMonth by remember { mutableIntStateOf(initialMonth) }
+    var selDay by remember { mutableIntStateOf(initialDay) }
+    val locale = Locale.getDefault()
+    val symbols = remember(locale) { DateFormatSymbols.getInstance(locale) }
+    val firstDow = Calendar.getInstance(locale).firstDayOfWeek
+    val cal = remember(shown, locale) {
+        Calendar.getInstance(locale).apply {
+            clear()
+            set(2000, shown - 1, 1) // leap year, so February gets 29 days
+        }
+    }
+    val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+    val offset = (cal.get(Calendar.DAY_OF_WEEK) - firstDow + 7) % 7
+    val weekdays = (0..6).map { i -> symbols.shortWeekdays[((firstDow - 1 + i) % 7) + 1].take(2) }
+    val rows = (offset + daysInMonth + 6) / 7
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Birthday") },
+        text = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { shown = if (shown == 1) 12 else shown - 1 }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Previous month")
+                    }
+                    Text(
+                        symbols.months[shown - 1],
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = { shown = if (shown == 12) 1 else shown + 1 }) {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Next month")
+                    }
+                }
+                Row(Modifier.fillMaxWidth()) {
+                    weekdays.forEach { w ->
+                        Text(
+                            w,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                for (r in 0 until rows) {
+                    Row(Modifier.fillMaxWidth()) {
+                        for (col in 0..6) {
+                            val day = r * 7 + col - offset + 1
+                            Box(
+                                Modifier.weight(1f).aspectRatio(1f).padding(2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (day in 1..daysInMonth) {
+                                    val selected = selMonth == shown && selDay == day
+                                    Box(
+                                        Modifier
+                                            .size(36.dp)
+                                            .clip(CircleShape)
+                                            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                                            .clickable {
+                                                selMonth = shown
+                                                selDay = day
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            "$day",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = if (selected) MaterialTheme.colorScheme.onPrimary
+                                            else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = { onSave(selMonth, selDay) }) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }

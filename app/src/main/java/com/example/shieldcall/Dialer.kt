@@ -235,7 +235,7 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
             }
         }
         Text(
-            "Hold 0 for +, hold 1 for voicemail",
+            "Hold 0 for +",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

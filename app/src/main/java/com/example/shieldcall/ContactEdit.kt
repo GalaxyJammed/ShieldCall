@@ -34,6 +34,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.ui.text.font.FontWeight
 
 data class EditableField(val id: Long?, val value: String, val type: Int)
 
@@ -277,8 +278,9 @@ private fun EditForm(d: ContactDetails, callKey: String, onDismiss: () -> Unit) 
 
     val canSave = (first.isNotBlank() || last.isNotBlank()) && !saving
 
+    val scroll = rememberScrollState()
     Column(
-        Modifier.verticalScroll(rememberScrollState()).padding(20.dp),
+        Modifier.scrollbar(scroll).verticalScroll(scroll).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text("Edit contact", style = MaterialTheme.typography.titleLarge)
@@ -363,7 +365,7 @@ private fun FieldSection(
     addLabel: String,
     newType: Int
 ) {
-    Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+    EditSection(title)
     items.forEachIndexed { i, f ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
@@ -373,15 +375,28 @@ private fun FieldSection(
                 keyboardOptions = KeyboardOptions(keyboardType = keyboard),
                 modifier = Modifier.weight(1f)
             )
-            TextButton(onClick = { items[i] = f.copy(type = next(f.type)) }) {
+            OutlinedButton(onClick = { items[i] = f.copy(type = next(f.type)) }) {
                 Text(label(f.type), style = MaterialTheme.typography.labelMedium)
             }
             IconButton(onClick = { items.removeAt(i) }) { Icon(Icons.Default.Close, contentDescription = "Remove") }
         }
     }
-    TextButton(onClick = { items.add(EditableField(null, "", newType)) }) {
+    OutlinedButton(onClick = { items.add(EditableField(null, "", newType)) }) {
         Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(6.dp))
         Text(addLabel)
+    }
+}
+
+@Composable
+fun EditSection(title: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        HorizontalDivider()
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
