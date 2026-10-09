@@ -27,6 +27,9 @@ class ShieldInCallService : InCallService() {
 
     private val ongoingCallback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) {
+            if (state == Call.STATE_RINGING) FlashAlert.start(this@ShieldInCallService)
+            else FlashAlert.stop(this@ShieldInCallService)
+            if (state == Call.STATE_ACTIVE) FaceDown.start(this@ShieldInCallService)
             updateOngoing()
         }
 
@@ -171,6 +174,10 @@ class ShieldInCallService : InCallService() {
         val ring = ringStart.remove(call)?.let { ((System.currentTimeMillis() - it) / 1000).toInt() } ?: 0
         call.unregisterCallback(ongoingCallback)
         CallManager.remove(call)
+        if (CallManager.calls.isEmpty()) {
+            FlashAlert.stop(this)
+            FaceDown.stop()
+        }
         updateOngoing()
         getSystemService(NotificationManager::class.java).cancel(1)
         logHistory(call, incoming, wasSilenced, ring)
@@ -225,6 +232,11 @@ class ShieldInCallService : InCallService() {
                 .setContentIntent(pi)
                 .setWhen(System.currentTimeMillis())
                 .addAction(android.R.drawable.sym_action_call, "Call back", callBack)
+                .addAction(
+                    android.R.drawable.ic_popup_reminder,
+                    "Call back in an hour",
+                    CallbackReminder.actionIntent(this@ShieldInCallService, CallbackReminderReceiver.SCHEDULE, key ?: raw, name)
+                )
                 .build()
             nm.notify(key ?: raw, 2, n)
         }

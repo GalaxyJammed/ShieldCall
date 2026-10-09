@@ -352,7 +352,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                 BlockLink("Reported reviews", null) { admin = true }
             }
         }
-
         Spacer(Modifier.height(24.dp))
         Section("About")
         ShieldCard(Modifier.fillMaxWidth()) {

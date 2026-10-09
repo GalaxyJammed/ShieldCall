@@ -75,20 +75,3 @@ class CallSound(private val context: Context) {
         ringtone = null
     }
 }
-
-@Composable
-fun CallBackdrop(content: @Composable () -> Unit) {
-    val context = LocalContext.current
-    val bg = remember { CallStyle.loadBg(context) }
-    if (bg == null) {
-        content()
-    } else {
-        ShieldTheme(true) {
-            Box(Modifier.fillMaxSize()) {
-                Image(bg, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)))
-                content()
-            }
-        }
-    }
-}

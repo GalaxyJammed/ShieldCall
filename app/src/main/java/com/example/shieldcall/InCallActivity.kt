@@ -60,6 +60,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.os.PowerManager
 import androidx.compose.ui.unit.Dp
+import androidx.compose.foundation.layout.safeDrawingPadding
 
 private val CallGreen = Color(0xFF2E7D32)
 private val CallAmber = Color(0xFFF9A825)
@@ -79,9 +80,9 @@ class InCallActivity : ComponentActivity() {
         setContent {
             ShieldTheme(Prefs.dark) {
                 Surface(Modifier.fillMaxSize()) {
-                    CallBackdrop {
+                    CallBackdrop(overrideNumber = if (fake != null) intent.getStringExtra("fakeNumber") else null) {
                         Box(Modifier.safeDrawingPadding()) {
-                            if (fake != null) FakeCallScreen(fake, intent.getStringExtra("fakeNumber").orEmpty()) { finish() }
+                            if (fake != null) FakeCallScreen(fake, intent.getStringExtra("fakeNumber").orEmpty(), intent.getStringExtra("loopAudio")) { finish() }
                             else InCallScreen { finish() }
                         }
                     }
@@ -89,14 +90,17 @@ class InCallActivity : ComponentActivity() {
             }
         }
     }
+
     override fun onStop() {
         super.onStop()
         Widgets.refresh(this)
     }
+
     override fun onResume() {
         super.onResume()
         InCallUi.visible = true
     }
+
     override fun onPause() {
         super.onPause()
         InCallUi.visible = false
@@ -180,7 +184,9 @@ private fun InCallScreen(onFinish: () -> Unit) {
 
     LaunchedEffect(call == null) {
         if (call == null && prompt == null) {
-            if (wasActive && canPrompt) {
+            if (wasActive && key != null && PostCallNotes.isOn(context) && Notes.get(context, key).isBlank()) {
+                prompt = "note"
+            } else if (wasActive && canPrompt) {
                 prompt = "ended"
             } else {
                 delay(800)
@@ -191,7 +197,13 @@ private fun InCallScreen(onFinish: () -> Unit) {
 
     val p = prompt
     if (p != null) {
-        FeedbackScreen(number, contact, p == "ended", onFinish)
+        if (p == "note") {
+            NoteStep(key = key ?: number, name = contact.name) {
+                if (wasActive && canPrompt) prompt = "ended" else onFinish()
+            }
+        } else {
+            FeedbackScreen(number, contact, p == "ended", onFinish)
+        }
         return
     }
     if (call == null) return
@@ -340,22 +352,30 @@ private fun InCallScreen(onFinish: () -> Unit) {
 
         if (state == Call.STATE_RINGING) {
             val canReply = call.details.can(Call.Details.CAPABILITY_RESPOND_VIA_TEXT) && number.isNotBlank() && !isEmergency
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Bottom) {
-                LabeledButton("Decline", Icons.Default.CallEnd, CallRed) {
-                    if (canPrompt) prompt = "declined"
-                    call.reject(false, null)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.Top) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    LabeledButton("Decline", Icons.Default.CallEnd, CallRed) {
+                        if (canPrompt) prompt = "declined"
+                        call.reject(false, null)
+                    }
+                    if (canReply) {
+                        Spacer(Modifier.height(10.dp))
+                        SmallCircleButton("Reason", Icons.AutoMirrored.Filled.Message, MaterialTheme.colorScheme.secondary) {
+                            showReplies = true
+                        }
+                    }
                 }
-                if (canReply) LabeledButton("Message", Icons.AutoMirrored.Filled.Message, MaterialTheme.colorScheme.primary) { showReplies = true }
                 LabeledButton("Accept", Icons.Default.Call, CallGreen) { call.answer(VideoProfile.STATE_AUDIO_ONLY) }
             }
             if (showReplies) {
-                val replies = remember(call) {
-                    call.cannedTextResponses.orEmpty().ifEmpty {
-                        listOf("Can't talk now. What's up?", "I'll call you right back.", "I'll call you later.", "Can't talk now. Call me later?")
-                    }
-                }
                 ReplySheet(
-                    replies = replies,
+                    replies = listOf(
+                        "I'm busy right now",
+                        "I'm at work",
+                        "I can't talk right now",
+                        "I'll call you back later",
+                        "Please send a text instead"
+                    ),
                     onPick = { text ->
                         showReplies = false
                         if (canPrompt) prompt = "declined"
@@ -583,79 +603,5 @@ private fun FeedbackScreen(number: String, contact: ContactInfo, ended: Boolean,
         ShieldCard(Modifier.fillMaxWidth()) {
             if (ended) CallFeedbackPrompt(onSelect) else DeclineReasonPrompt(existingVote = null, onSelect = onSelect)
         }
-    }
-}
-
-@Composable
-private fun CallFeedbackPrompt(onSelect: (String?) -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("How did the call go?", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        listOf("safe" to CallGreen, "spam" to CallAmber, "scam" to CallRed).forEach { (type, color) ->
-            Button(
-                onClick = { onSelect(type) },
-                colors = ButtonDefaults.buttonColors(containerColor = color, contentColor = Color.White),
-                modifier = Modifier.fillMaxWidth()
-            ) { Text(type.replaceFirstChar { it.uppercase() }) }
-        }
-        OutlinedButton(onClick = { onSelect(null) }, modifier = Modifier.fillMaxWidth()) { Text("Skip") }
-    }
-}
-
-@Composable
-private fun ReplySheet(replies: List<String>, onPick: (String) -> Unit, onDismiss: () -> Unit) {
-    var custom by remember { mutableStateOf("") }
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        ShieldCard(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Decline with a message", style = MaterialTheme.typography.titleLarge)
-                replies.forEach { r ->
-                    OutlinedButton(onClick = { onPick(r) }, modifier = Modifier.fillMaxWidth()) { Text(r) }
-                }
-                OutlinedTextField(
-                    value = custom,
-                    onValueChange = { custom = it.take(160) },
-                    label = { Text("Custom message") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(enabled = custom.isNotBlank(), onClick = { onPick(custom.trim()) }) { Text("Send") }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun LabeledButton(label: String, icon: ImageVector, color: Color, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        FilledIconButton(
-            onClick = onClick,
-            modifier = Modifier.size(72.dp),
-            colors = IconButtonDefaults.filledIconButtonColors(containerColor = color, contentColor = Color.White)
-        ) { Icon(icon, contentDescription = label, modifier = Modifier.size(32.dp)) }
-        Spacer(Modifier.height(6.dp))
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-fun ToggleButton(
-    label: String,
-    icon: ImageVector,
-    on: Boolean,
-    modifier: Modifier = Modifier,
-    labelGap: Dp = 4.dp,
-    onClick: () -> Unit
-) {
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
-        FilledIconToggleButton(
-            checked = on,
-            onCheckedChange = { onClick() },
-            modifier = Modifier.size(60.dp)
-        ) { Icon(icon, contentDescription = label) }
-        Spacer(Modifier.height(labelGap))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

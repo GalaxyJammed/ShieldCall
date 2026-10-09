@@ -18,6 +18,21 @@ data class Release(val version: String, val notes: List<String>)
 object Changelog {
     val releases = listOf(
         Release(
+            "2.5.0",
+            listOf(
+                "Added the ability to add a custom background that overrides the settings background for individual contacts \"Number Details\" -> \"Edit Icon\"",
+                "Added \"Decline With Reason\" when you get a call that declines and lets you write an SMS to the user immediately (or pick from default lines already given)",
+                "Added a \"Call Later\" on missed call notifications that reminds you to call the number an hour later",
+                "Added a \"Set Birthday\" in 'Edit Contact' inside of \"Number Details\" that lets you assign a contact's birthday (syncs with Google) and when that user's birthday arrives it gives you a reminder",
+                "Added Flash on call in Settings where your phone's flashlight goes on when a call is ongoing so you don't miss it",
+                "On the \"Dialer\" added \"Speed-dial\" where you can assign each number to a contact and easily call them by holding down said number",
+                "Added \"Mute when face down\" setting where if you put your phone face down the call and microphone are muted incase you are in the middle of a conversation but dont want to hang up",
+                "Added a 'Looping Audio' field in \"Fake Call\" where you can add an audio file that constantly loops to simulate talking so you can test features that have to do with audio (Hold, Phone Down to mute etc)"
+
+
+            )
+        ),
+        Release(
             "2.4.0",
             listOf(
                 "Added 'Filters' in \"Contacts\" -> \"Recent Calls\" so you can better list your calls (Incoming, Outgoing etc)",
@@ -28,16 +43,6 @@ object Changelog {
                 "Added a \"Missed Calls\" card on the Lookup screen so you can easily check which calls you missed in the day and call them back if you wish",
                 "Added \"Wrongly marked as {x}\" in number details so you can report the entire vote of the number as false",
                 "Added badges for 10, 50, 150 votes that shows up in your profile for fun"
-
-
-            )
-        ),
-        Release(
-            "2.3.0",
-            listOf(
-                "Added 'Silence the ring' in \"Security\". A call that is \"Silenced\" will still ring but you won't hear it ring or vibrate and it will go to your call history like normal",
-                "The Red warning card when you are on an outdated version now installs the apk right on your device instead of forcing you to go through the downloads yourself",
-                "Fixed \"Add Call\" button being off-center in the Dialer"
             )
         )
     )

@@ -39,7 +39,13 @@ data class Info(
     val myTag: String? = null,
     val tags: Map<String, Long> = emptyMap()
 )
-data class ContactInfo(val name: String?, val photo: String?, val location: String? = null, val lookupUri: String? = null)
+data class ContactInfo(
+    val name: String?,
+    val photo: String?,
+    val location: String? = null,
+    val lookupUri: String? = null,
+    val birthday: String? = null
+)
 
 data class Flagged(val tail: String, val rid: String, val type: String, val text: String, val author: String, val flags: Long)
 
@@ -347,6 +353,7 @@ object Reports {
         var name: String? = null
         var photo: String? = null
         var lookup: String? = null
+        var birthday: String? = null
         for (q in queries) {
             if (q.isBlank()) continue
             try {
@@ -364,6 +371,7 @@ object Reports {
                     if (c.moveToFirst()) {
                         name = c.getString(0)
                         photo = c.getString(1)
+                        birthday = Birthdays.forContact(context, c.getLong(2))
                         lookup = ContactsContract.Contacts.getLookupUri(c.getLong(2), c.getString(3))?.toString()
                     }
                 }
@@ -372,7 +380,7 @@ object Reports {
             }
         }
         val loc = loadLocation(context, number)
-        return ContactInfo(name, photo, loc, lookup)
+        return ContactInfo(name, photo, loc, lookup, birthday)
     }
 
     fun loadContactName(context: Context, number: String): String? {

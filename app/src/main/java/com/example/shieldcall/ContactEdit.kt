@@ -219,7 +219,7 @@ private fun emailNext(t: Int) = when (t) {
 }
 
 @Composable
-fun EditContactDialog(lookupUri: String, onDismiss: () -> Unit) {
+fun EditContactDialog(lookupUri: String, callKey: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val result by produceState<Pair<Boolean, ContactDetails?>>(false to null, lookupUri) {
         value = true to withContext(Dispatchers.IO) { ContactEditor.load(context, Uri.parse(lookupUri)) }
@@ -237,14 +237,14 @@ fun EditContactDialog(lookupUri: String, onDismiss: () -> Unit) {
                         TextButton(onClick = onDismiss) { Text("Close") }
                     }
                 }
-                else -> EditForm(details, onDismiss)
+                else -> EditForm(details, callKey, onDismiss)
             }
         }
     }
 }
 
 @Composable
-private fun EditForm(d: ContactDetails, onDismiss: () -> Unit) {
+private fun EditForm(d: ContactDetails, callKey: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var first by remember { mutableStateOf(d.first) }
@@ -300,6 +300,8 @@ private fun EditForm(d: ContactDetails, onDismiss: () -> Unit) {
         }
         FieldSection("Phone numbers", phones, ::phoneLabel, ::phoneNext, KeyboardType.Phone, "Add phone", Phone.TYPE_MOBILE)
         FieldSection("Emails", emails, ::emailLabel, ::emailNext, KeyboardType.Email, "Add email", Email.TYPE_HOME)
+        BirthdayRow(d.lookupKey)
+        CallBackgroundRow(callKey)
         Text(
             "Changes are saved to your phone's contacts and sync with your Google account when this contact is stored there. The photo can't be edited here yet.",
             style = MaterialTheme.typography.bodySmall,

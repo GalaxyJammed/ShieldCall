@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -158,6 +159,11 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
     }
 
     val guarded = rememberGuardedCall { SimChoice.placeNumber(context, it) }
+    var showSpeed by remember { mutableStateOf(false) }
+    fun speedCall(d: Int) {
+        val k = SpeedDial.get(context, d)
+        if (k == null) showSpeed = true else guarded("+$k")
+    }
     fun place() {
         val number = parsed?.let { "+${it.countryCode}${it.nationalNumber}" } ?: digits
         guarded(number)
@@ -275,9 +281,9 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
                 row.forEach { k ->
                     Key(
                         onClick = { if (digits.length < 20) digits += k },
-                        onLong = when (k) {
-                            "0" -> ({ if (digits.length < 20) digits += "+" })
-                            "1" -> ({ start(true) })
+                        onLong = when {
+                            k == "0" -> ({ if (digits.length < 20) digits += "+" })
+                            k.toIntOrNull()?.let { it in 1..9 } == true -> ({ speedCall(k.toInt()) })
                             else -> null
                         }
                     ) { Text(k, style = MaterialTheme.typography.headlineMedium) }
@@ -286,7 +292,9 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
             Spacer(Modifier.height(12.dp))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-            Spacer(Modifier.size(72.dp))
+            Key(onClick = { showSpeed = true }) {
+                Icon(Icons.Default.Settings, contentDescription = "Speed dial")
+            }
             Key(
                 onClick = {
                     if (digits.isEmpty()) dao.lastOutgoing()?.let { digits = "+$it" }
@@ -302,6 +310,7 @@ fun DialerScreen(initial: String = "", onClose: () -> Unit) {
         }
         Spacer(Modifier.height(8.dp))
     }
+    if (showSpeed) SpeedDialEditor { showSpeed = false }
 }
 
 @Composable

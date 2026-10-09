@@ -60,6 +60,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import com.google.firebase.firestore.FirebaseFirestoreException
+import androidx.compose.material.icons.filled.Cake
 
 private val Green = Color(0xFF2E7D32)
 private val Amber = Color(0xFFF9A825)
@@ -239,7 +240,7 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
     val listState = rememberLazyListState()
     Box(Modifier.fillMaxSize()) {
         if (adding) NewContactDialog(displayNum) { adding = false }
-        if (editing) contactInfo?.lookupUri?.let { EditContactDialog(it) { editing = false } }
+        if (editing) contactInfo?.lookupUri?.let { EditContactDialog(it, tail) { editing = false } }
         pendingVote?.let { type ->
             TagDialog(
                 type = type,
@@ -288,11 +289,17 @@ fun InfoScreen(number: String, onBack: () -> Unit) {
                         CallAvatar(photoUri = contactInfo?.photo, size = 56.dp)
                         Spacer(Modifier.width(16.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = contactInfo?.name?.takeIf { it.isNotBlank() } ?: "Unknown Number",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = contactInfo?.name?.takeIf { it.isNotBlank() } ?: "Unknown Number",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (Birthdays.isToday(contactInfo?.birthday)) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Icon(Icons.Default.Cake, contentDescription = "Birthday today", tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
                             Text(
                                 text = displayNum,
                                 style = MaterialTheme.typography.titleMedium,

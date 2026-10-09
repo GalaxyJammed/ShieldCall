@@ -76,6 +76,7 @@ class MainActivity : ComponentActivity() {
         }
         if (savedInstanceState == null) handle(intent)
         refresh()
+        CoroutineScope(Dispatchers.IO).launch { BirthdayCheck.run(this@MainActivity) }
         setContent {
             ShieldTheme(Prefs.dark) {
                 Surface(Modifier.fillMaxSize()) {
