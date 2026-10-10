@@ -117,6 +117,14 @@ class ShieldInCallService : InCallService() {
         val ringing = call.state == Call.STATE_RINGING
         if (ringing) incomingCalls.add(call)
         if (ringing) ringStart[call] = System.currentTimeMillis()
+        if (ringing && CallPrefs.ttsName(this)) {
+            val raw = call.details.handle?.schemeSpecificPart.orEmpty()
+            CoroutineScope(Dispatchers.IO).launch {
+                if (call.state != Call.STATE_RINGING) return@launch
+                val name = Reports.loadContactInfo(this@ShieldInCallService, raw).name?.takeIf { it.isNotBlank() }
+                PlanSpeaker.say(this@ShieldInCallService, "Incoming call from ${name ?: "Unknown Number"}")
+            }
+        }
         val callNumber = call.details.handle?.schemeSpecificPart.orEmpty()
         if (ringing && Silenced.isSilenced(callNumber)) {
             notifySilenced(call)
@@ -181,6 +189,7 @@ class ShieldInCallService : InCallService() {
         updateOngoing()
         getSystemService(NotificationManager::class.java).cancel(1)
         logHistory(call, incoming, wasSilenced, ring)
+        PlanAlerts.checkLow(this)
         if (call.details.disconnectCause?.code == DisconnectCause.MISSED && !wasSilenced) {
             notifyMissed(call.details.handle?.schemeSpecificPart.orEmpty())
             hideSystemMissed()

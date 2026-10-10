@@ -19,7 +19,6 @@ import kotlinx.coroutines.tasks.await
 object Disputes {
     private val db get() = FirebaseFirestore.getInstance()
 
-    /** One dispute per user per number. Stored under reports/{number}/disputes/{uid}. */
     suspend fun send(tail: String, reason: String) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: throw IllegalStateException("Not signed in")
         db.collection("reports").document(tail).collection("disputes").document(uid)
@@ -27,7 +26,6 @@ object Disputes {
             .await()
     }
 
-    /** Admin only. Returns (number, reporter uid, reason). */
     suspend fun load(): List<Triple<String, String, String>> =
         db.collectionGroup("disputes").limit(30).get().await().documents.map {
             Triple(it.reference.parent.parent?.id.orEmpty(), it.id, it.getString("reason").orEmpty())

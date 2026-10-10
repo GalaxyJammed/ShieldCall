@@ -57,6 +57,7 @@ object Widgets {
         CoroutineScope(Dispatchers.IO).launch {
             ShieldWidget().updateAll(app)
             ShieldStatsWidget().updateAll(app)
+            FavContactsWidgetProvider.refreshAll(app)
         }
     }
 }

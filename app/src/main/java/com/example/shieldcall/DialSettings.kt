@@ -24,6 +24,7 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.material.icons.filled.RecordVoiceOver
 
 @Composable
 fun DialSettings() {
@@ -33,6 +34,7 @@ fun DialSettings() {
     var flash by remember { mutableStateOf(CallPrefs.flash(context)) }
     var faceDown by remember { mutableStateOf(CallPrefs.faceDown(context)) }
     var testing by remember { mutableStateOf(false) }
+    var ttsName by remember { mutableStateOf(CallPrefs.ttsName(context)) }
 
     val bgPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -72,6 +74,16 @@ fun DialSettings() {
             ) {
                 faceDown = it
                 CallPrefs.setFaceDown(context, it)
+            }
+            HorizontalDivider()
+            SettingRow(
+                Icons.Default.RecordVoiceOver,
+                "Say caller name",
+                "Reads \"Incoming call from\" and the name aloud when a call rings",
+                ttsName
+            ) {
+                ttsName = it
+                CallPrefs.setTtsName(context, it)
             }
             HorizontalDivider()
             PostCallNotesSettingRow()

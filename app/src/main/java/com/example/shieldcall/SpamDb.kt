@@ -167,6 +167,9 @@ interface SpamDao {
 
     @Query("SELECT COUNT(*) FROM calls WHERE status = 'Missed' AND time >= :since")
     fun missedCountSince(since: Long): Flow<Int>
+
+    @Query("SELECT COALESCE(SUM((duration + 59) / 60), 0) FROM calls WHERE time >= :since AND (status = 'Outgoing' OR (:incoming = 1 AND status = 'Incoming'))")
+    fun minutesSince(since: Long, incoming: Int): Int
 }
 
 private val MIGRATION_1_2 = object : Migration(1, 2) {

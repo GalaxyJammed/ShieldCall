@@ -46,6 +46,7 @@ fun PreferencesScreen() {
     val context = LocalContext.current
     val dao = remember { SpamDb.get(context).dao() }
     val blocked by dao.blockedFlow().collectAsState(emptyList())
+    val blockedLog by dao.blockedCallsFlow().collectAsState(emptyList())
     var showAddDialog by remember { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf<String?>(null) }
     page?.let {
@@ -136,7 +137,7 @@ fun PreferencesScreen() {
         Spacer(Modifier.height(24.dp))
         Section("Activity")
         ShieldCard(Modifier.fillMaxWidth()) {
-            BlockLink("Blocked calls", null) { page = "log" }
+            BlockLink("Blocked calls", blockedLog.size) { page = "log" }
         }
         Spacer(Modifier.height(96.dp))
     }

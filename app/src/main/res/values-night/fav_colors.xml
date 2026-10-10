@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="fav_bg">#1A1C1E</color>
+    <color name="fav_card">#232830</color>
+    <color name="fav_text">#E2E2E6</color>
+    <color name="fav_text_muted">#C4C6D0</color>
+</resources>

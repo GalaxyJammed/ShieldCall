@@ -353,6 +353,10 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
         }
         Spacer(Modifier.height(24.dp))
+        Section("Call minutes")
+        CallMinutesSection()
+        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(24.dp))
         Section("About")
         ShieldCard(Modifier.fillMaxWidth()) {
             Column {

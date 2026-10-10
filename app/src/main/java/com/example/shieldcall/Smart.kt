@@ -16,9 +16,10 @@ object CallPrefs {
     fun setFlash(c: Context, v: Boolean) = p(c).edit().putBoolean("flashCall", v).apply()
     fun faceDown(c: Context) = p(c).getBoolean("faceDownMute", false)
     fun setFaceDown(c: Context, v: Boolean) = p(c).edit().putBoolean("faceDownMute", v).apply()
+    fun ttsName(c: Context) = p(c).getBoolean("ttsName", false)
+    fun setTtsName(c: Context, v: Boolean) = p(c).edit().putBoolean("ttsName", v).apply()
 }
 
-/** Blinks the torch while a call rings. Needs no camera permission. */
 object FlashAlert {
     private val handler = Handler(Looper.getMainLooper())
     private var on = false
@@ -63,7 +64,6 @@ object FlashAlert {
     }
 }
 
-/** Mutes the call and mic while the phone lies face down (gravity on the -Z axis). */
 object FaceDown : SensorEventListener {
     var testSink: ((Boolean) -> Unit)? = null
 

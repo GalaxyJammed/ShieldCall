@@ -36,7 +36,6 @@ private val TestGreen = Color(0xFF2E7D32)
 private val TestAmber = Color(0xFFF9A825)
 private val TestRed = Color(0xFFC62828)
 
-/** Stores the looping audio picked for test calls. */
 object TestLoop {
     fun file(c: Context) = File(c.filesDir, "test_loop.audio")
 
@@ -65,11 +64,6 @@ object TestLoop {
     }
 }
 
-/**
- * Mirrors the real call flow without touching Telecom: ringing (Decline, Reason, Accept),
- * active (keypad, mute, speaker, hold, end) with optional looping audio, then the
- * note, feedback and decline prompts. Nothing is dialed, saved or reported.
- */
 @Composable
 fun FakeCallScreen(name: String, number: String, loopPath: String? = null, onFinish: () -> Unit) {
     val context = LocalContext.current

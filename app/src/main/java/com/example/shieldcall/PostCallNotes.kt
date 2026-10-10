@@ -21,7 +21,6 @@ object PostCallNotes {
     }
 }
 
-/** Settings row that turns the after-call note prompt on or off. */
 @Composable
 fun PostCallNotesSettingRow() {
     val context = LocalContext.current
@@ -37,7 +36,6 @@ fun PostCallNotesSettingRow() {
     }
 }
 
-/** Shown when an answered call ends. Notes are saved per number and appear in Number Details. */
 @Composable
 fun NoteStep(key: String, name: String?, dryRun: Boolean = false, onNext: () -> Unit) {
     val context = LocalContext.current

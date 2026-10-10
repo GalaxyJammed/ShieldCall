@@ -42,6 +42,7 @@ object SimChoice {
     }
 
     fun placeUri(c: Context, uri: Uri) {
+        PlanAlerts.beforeCall(c, uri)
         val extras = Bundle()
         if (accounts(c).size > 1) {
             selected(c)?.let { extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }

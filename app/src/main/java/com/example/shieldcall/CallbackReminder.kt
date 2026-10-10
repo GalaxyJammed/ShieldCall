@@ -56,6 +56,10 @@ object CallbackReminder {
 
 class CallbackReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == EXPIRED) {
+            PlanAlerts.notifyExpired(context)
+            return
+        }
         val key = intent.getStringExtra("key") ?: return
         val name = intent.getStringExtra("name")
         when (intent.action) {
@@ -67,5 +71,6 @@ class CallbackReminderReceiver : BroadcastReceiver() {
     companion object {
         const val SCHEDULE = "shieldcall.callback.SCHEDULE"
         const val REMIND = "shieldcall.callback.REMIND"
+        const val EXPIRED = "shieldcall.plan.EXPIRED"
     }
 }

@@ -67,10 +67,7 @@ object CallBackgrounds {
     }
 }
 
-/**
- * Wraps the call screen. A contact's own background wins over the default one from Settings.
- * It looks up the live call's number, so it works for incoming and outgoing calls.
- */
+
 @Composable
 fun CallBackdrop(overrideNumber: String? = null, content: @Composable () -> Unit) {
     val context = LocalContext.current
@@ -93,7 +90,6 @@ fun CallBackdrop(overrideNumber: String? = null, content: @Composable () -> Unit
     }
 }
 
-/** Shown on the edit-contact form. Picks, replaces or removes this contact's call background. */
 @Composable
 fun CallBackgroundRow(key: String) {
     val context = LocalContext.current

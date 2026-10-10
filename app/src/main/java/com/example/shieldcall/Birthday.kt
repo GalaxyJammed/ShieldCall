@@ -64,7 +64,6 @@ object Birthdays {
         return ContentUris.parseId(uri)
     }
 
-    /** Birthday text (yyyy-MM-dd) for a contact id. Local read only. */
     fun forContact(c: Context, contactId: Long): String? =
         c.contentResolver.query(
             ContactsContract.Data.CONTENT_URI,
@@ -86,7 +85,6 @@ object Birthdays {
             null
         )?.use { if (it.moveToFirst()) it.getLong(0) else null }
 
-    /** Writes the birthday into the phone's contacts, so it syncs with Google like any other field. */
     fun set(c: Context, lookupKey: String, date: String?) {
         val cr = c.contentResolver
         val contactId = contactIdOf(c, lookupKey) ?: return
@@ -178,7 +176,6 @@ fun BirthdayRow(lookupKey: String) {
     }
 }
 
-/** Runs when the app opens. One notification per contact, once per day. Local reads only. */
 object BirthdayCheck {
     suspend fun run(c: Context) {
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())

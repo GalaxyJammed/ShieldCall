@@ -45,7 +45,6 @@ data class Perms(val phone: Boolean = false, val overlay: Boolean = false, val r
     val all: Boolean get() = phone && overlay && role
 }
 
-/** Asks the Stats screen to open a vote list ("spam", "scam" or "safe"). */
 object ListRequest {
     var type by mutableStateOf<String?>(null)
 }
@@ -76,6 +75,7 @@ class MainActivity : ComponentActivity() {
         }
         if (savedInstanceState == null) handle(intent)
         refresh()
+        PlanAlerts.checkLow(this)
         CoroutineScope(Dispatchers.IO).launch { BirthdayCheck.run(this@MainActivity) }
         setContent {
             ShieldTheme(Prefs.dark) {

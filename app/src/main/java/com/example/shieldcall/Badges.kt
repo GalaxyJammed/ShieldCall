@@ -29,7 +29,6 @@ object Badges {
         else -> Color.Unspecified
     }
 
-    /** Based on the local vote history, so it costs no Firebase reads. */
     fun levelFor(context: Context): Int =
         level(SpamDb.get(context).dao().identifiedTotal().toLong())
 }

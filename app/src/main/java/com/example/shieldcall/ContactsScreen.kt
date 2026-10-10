@@ -47,6 +47,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.CleaningServices
 
 data class ContactItem(
     val name: String,
@@ -101,6 +102,7 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
             TabRequest.contactsMode = null
         }
     }
+    var cleaning by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var contacts by remember { mutableStateOf<List<ContactItem>?>(null) }
     var query by remember { mutableStateOf("") }
@@ -188,13 +190,18 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
         }
         Spacer(Modifier.height(16.dp))
         if (mode == 0) {
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                label = { Text("Search contacts") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text("Search contacts") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { cleaning = true }) {
+                    Icon(Icons.Default.CleaningServices, contentDescription = "Clean up contacts")
+                }
+            }
             if (query.isBlank() && favItems.isNotEmpty()) {
                 Spacer(Modifier.height(12.dp))
                 Text(
@@ -305,6 +312,12 @@ fun ContactsScreen(onLookup: (String) -> Unit) {
         }
     }
     if (adding) NewContactDialog("") { adding = false }
+    if (cleaning) {
+        ContactCleanupDialog {
+            cleaning = false
+            ContactsVersion.n++
+        }
+    }
 }
 
 @Composable

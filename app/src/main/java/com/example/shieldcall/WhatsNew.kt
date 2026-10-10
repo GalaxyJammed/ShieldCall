@@ -18,6 +18,17 @@ data class Release(val version: String, val notes: List<String>)
 object Changelog {
     val releases = listOf(
         Release(
+            "2.6.0",
+            listOf(
+                "In \"Settings\" you can now enable estimate tracking of your minutes left so if you are on SIM it will (in estimate) warn you if your Carrier Balance is getting too low. You can also add the carrier's website for easy access to it straight from the app",
+                "Added a TTS option in \"Settings\" that lets a TTS voice speak when receiving a call saying \"Incoming Call from {Contact Name}\"",
+                "Added Quiet Hours/Dialer accessible from the Android Quick Tiles so you can access it in a flash",
+                "Added \"Favorites\" widget so you can access yoru favorite contacts (upto 6) from the widget in the home screen and immediately call them",
+                "Added a Contacts clean-up button so you can immediately merge and remove contacts with missing numbers or missing names and reformats numbers that are missing their country code",
+
+            )
+        ),
+        Release(
             "2.5.0",
             listOf(
                 "Added the ability to add a custom background that overrides the settings background for individual contacts \"Number Details\" -> \"Edit Icon\"",
@@ -28,21 +39,6 @@ object Changelog {
                 "On the \"Dialer\" added \"Speed-dial\" where you can assign each number to a contact and easily call them by holding down said number",
                 "Added \"Mute when face down\" setting where if you put your phone face down the call and microphone are muted incase you are in the middle of a conversation but dont want to hang up",
                 "Added a 'Looping Audio' field in \"Fake Call\" where you can add an audio file that constantly loops to simulate talking so you can test features that have to do with audio (Hold, Phone Down to mute etc)"
-
-
-            )
-        ),
-        Release(
-            "2.4.0",
-            listOf(
-                "Added 'Filters' in \"Contacts\" -> \"Recent Calls\" so you can better list your calls (Incoming, Outgoing etc)",
-                "Added Tags for \"Safe\" voting option so you can immediately show what type of a number it is",
-                "Added 'Landline Hints' to unknown numbers showing country info from where the number is from in \"Number Details\"",
-                "When tapping an \"Identified Calls\" card it now shows you the numbers you voted \"Spam, Scam, Safe\" so you can easily view/update or even change your vote",
-                "Shows how long the missed call you received was to check if it was an instant hang-up or not",
-                "Added a \"Missed Calls\" card on the Lookup screen so you can easily check which calls you missed in the day and call them back if you wish",
-                "Added \"Wrongly marked as {x}\" in number details so you can report the entire vote of the number as false",
-                "Added badges for 10, 50, 150 votes that shows up in your profile for fun"
             )
         )
     )
