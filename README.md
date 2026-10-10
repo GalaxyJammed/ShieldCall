@@ -115,7 +115,8 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 ### 📦 Widgets
 - **Shortcut widget:** Lookup, Dial, Recent calls and Contacts in one tap
 - **Stats widget:** Identified calls (Spam, Scam, Safe) and your activity (Votes, Reviews, Lookups)
-- Both widgets follow your light and dark theme, and show previews before you add them
+- **Favorites widget:** Let's you add up-to 6 contacts you deem most important so you can easily call them through the home screen
+- All widgets follow your light and dark theme, and show previews before you add them
 
 ### 🚀 More to Come
 - ShieldCall is a work in progress and new features are on the way.
