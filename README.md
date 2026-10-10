@@ -2,14 +2,14 @@
 
 # ShieldCall - Know Who's Calling
 
-**A community-powered Android caller ID + reverse phone lookup + spam/scam call blocking app, built with Jetpack Compose**
+**A community-powered Android caller ID, dialer and spam/scam call blocking app, built with Jetpack Compose**
 
 ![Kotlin](https://img.shields.io/badge/Kotlin-100%25-7F52FF?logo=kotlin&logoColor=white)
 ![Platform](https://img.shields.io/badge/Platform-Android-3DDC84?logo=android&logoColor=white)
 ![Min SDK](https://img.shields.io/badge/Min%20SDK-29-blue)
 ![GitHub release](https://img.shields.io/github/v/release/galaxyjammed/ShieldCall?logo=github&label=GitHub%20release)
 ![License](https://img.shields.io/badge/License-MIT-lightgrey?logo=mit)
-![Project Status](https://img.shields.io/badge/Project%20Status-Almost_Finished-blue)
+![Project Status](https://img.shields.io/badge/Project%20Status-Finished-blue)
 
 ⭐ **If ShieldCall helps you, please star this repository. It helps other users find the project.**
 
@@ -17,7 +17,7 @@
 
 ## What is ShieldCall?
 
-ShieldCall is a free, open-source Android app that tells you who is calling before you pick up. When a call comes in, a card appears on your screen showing whether the number is a saved contact, spam, or a scam. You can also look up any number yourself, see how other people rated it, and leave your own review. Decide what to block, and ShieldCall hangs up for you.
+ShieldCall is a free, open-source Android app that tells you who is calling before you pick up. When a call comes in, a card shows whether the number is a saved contact, spam, or a scam. It can also be your full phone app: place calls, answer them, and manage multiple calls from one place. You can look up any number, see how other people rated it, and leave your own review. Decide what to block, and ShieldCall handles the rest.
 
 <div align="center">
   <img width="100" height="100" alt="app_logo" src="https://github.com/user-attachments/assets/eafcdf2b-c13d-473b-bac3-0318bf0571ef" />
@@ -28,109 +28,137 @@ ShieldCall is a free, open-source Android app that tells you who is calling befo
 ## Features
 
 ### 📞 Instant Caller Info
-- A card appears as soon as a call comes in, showing the contact name, contact number and safety ranking
-- Shows popup after the call allowing you to instantly rate the number as **SAFE,SPAM,SCAM** without having to enter the app
-- Works through Android's call screening (or a custom one if you have made the app as the default dial), so the info shows up while the phone is still ringing
-- Can be switched off at any time with the **Automatic call lookup** setting (disabled when having full-screen calls enabled)
-- **Decline & Message** or send **Voicemails** through the dialer incase you wish to respond without calling
-- **Notifications on missed calls** that show the "Safety Ranking" of a missed call along with a "Call Back" button
-- Immediately warns you on Calls/Missed Calls from foreign countries for callback scams
-- Supports **multiple calls** (Decline, Hold & Accept, End current call & Accept)
-- Supports **dual-SIM** allowing you to call a number from either SIM you have
-- Supports **Speaker, Headset and any other bluetooth device** that connects for input/output audio
-- **On-going call notification** so you can always switch back to the dialer if you ever leave the app whilst in a call along with buttons to control the dialer just from the notification
-- Screen **instantly dims when close to your face** so you never accidentally touch a button in the dialer
+- A card appears as soon as a call comes in, showing the contact name, number and safety ranking
+- Hints for unknown numbers, such as "Toll-free line, usually a company" or community labels like "Restaurant"
+- Rate a number as **Safe**, **Spam** or **Scam** right after a call ends, without opening the app
+- When ShieldCall isn't your default phone app, it shows a small card over your current screen. You can turn off the full-screen call option in Settings
+- **Automatic call lookup** only applies when ShieldCall isn't your default phone app
+- Warns you before calling back foreign numbers from one-ring scams and premium-rate numbers
+
+### ☎️ Dialer and Calls
+- A full dialer with a searchable keypad, contact suggestions as you type, and a redial key
+- **Speed dial:** hold keys 1 to 9 to call a saved contact, set up from the speed dial editor
+- **Multiple calls:** Decline, Hold & accept, End current call & accept, Swap and Merge
+- **Dual SIM:** choose which SIM to call from, and see which SIM an incoming call arrived on
+- **Audio routing** for phone speaker, wired headsets and Bluetooth devices
+- **Decline with a reason:** send a preset or custom text to the caller when you can't pick up
+- **Ongoing call notification** with End, Mute and Speaker, so you can leave the app mid-call
+- The screen dims when the phone is near your face, so your cheek can't hang up or mute the call
+- Emergency numbers work and skip every ShieldCall extra. Test them in Settings without dialing
+- **Voicemail** from the dialer, and voicemail alerts with a Listen button
+- **Silence the ring** as a blocking option, so the call goes to your history without ringing
+
+### 🔔 Alerts and Reminders
+- **Missed call alerts** with the caller's safety ranking, a time-of-ring note, and two buttons: **Call back** and **Call back in an hour**
+- **Missed calls today** card on the Lookup screen, which opens your missed call history
+- **Flash on call:** the torch blinks while the phone rings, so you notice it from across the room
+- **Mute when face down:** a call mutes itself and the mic when the phone is lying face down
+- **Birthdays:** add a birthday to a contact. A cake icon shows on their details on the day, and you get a reminder to call them
+- **Post-call notes:** when an answered call ends, you can add a private note about it
 
 ### 🔎 Number Lookup
-- Look up any phone number with a searchable **country code picker** that supports clipboard so you can instantly add a number
-- Numbers are validated for the selected country, so typos and impossible numbers are caught before you search
-- See the number's **trust score** and how many people voted it Safe, Spam or Scam along with reviews
-- **Share** the number's trust score with other people directly from the "Share Icon"
-- Add **private notes** to each number that are only visible to you
-- **Whitelist** numbers you look-up so they can call you regardless of your block settings
-- Add unknown numbers to your contacts with a single button press
-- Shows the last 5 calls and if they were **ongoing, outgoing, declined**
-- Shortcuts for **Call, Message, Favorite, Block/Unblock, Edit Contact**
+- Look up any number with a searchable country code picker, or paste one from the clipboard
+- Numbers are validated for the selected country, so typos are caught before you search
+- See the trust score, vote counts, reviews and the last few calls with that number
+- **Share** a number's safety summary from the top bar
+- **Private notes** on any number, visible only to you
+- **Always allow** a number, so its calls get through whatever your blocking rules say
+- Shortcuts for **Call, Message, Favorite, Block/Unblock** and **Edit** (for saved contacts)
+- **Add to contacts** for unknown numbers in one tap
 
 ### ⭐ Community Votes and Reviews
-- Vote a number as **Safe**, **Spam** or **Scam** and add a short written review about your experience
-- One vote per Google account per number, so a single person can't flood a number with reviews
-- Reviews are only loaded when you tap **Show reviews**, which keeps the app fast and light
-- Vote **anonymously** or using your **Google Account**
-- **Add tags** to numbers you know are Spam,Scam that show up in the number's trust score
-- Like other reviews and filter by **Newest/Most Liked** reviews for ease or report ones you think were done in bad faith
+- Vote a number **Safe**, **Spam** or **Scam**, and optionally tag the kind of call or place
+- **Change or remove your vote** at any time
+- One vote per Google account per number, so one person can't flood a number with votes
+- Write a short review, and post it under your name or anonymously
+- Like helpful reviews, sort by **Newest** or **Most liked**, and load more
+- **Report** reviews that look unfair or abusive. Reviews reported by several people are hidden
+- **Report a wrong label** when a number's label looks incorrect. Moderators see these reports
+- **Contributor badges** (Bronze, Silver, Gold) based on how many numbers you've voted on. They show on your profile and next to your reviews
 
-### 👥 Contacts and Recent Calls
-- Browse your contacts with their photos and tap anyone to see their safety screen
-- Switch to **Recent Calls/Favorites** with the filter button to see the last 100 calls ShieldCall screened along with information
-- **Favorite, Block or unblock** any contact or number with one tap
-- Add any contact **immediately through the app** (syncs with your Google Account and the default android contacts app)
+### 👥 Contacts, Favorites and History
+- Browse your contacts with photos, and tap any contact to see their details
+- Merged duplicate entries, so the same number saved in different formats shows as one contact
+- **Favorites strip** at the top of Contacts for one-tap calls
+- **Add contacts** and **edit contacts** (name, numbers, emails, birthday and call background) right in the app. Changes sync with your Google account
+- **Call history** with incoming, outgoing, missed, declined, silenced and blocked calls, grouped repeats, filters, and swipe to call or delete
+- Block or unblock any contact or number with one tap
 
-### 🛡️ Smart Blocking Preferences
-- Block calls from **Spam & scam**, **Businesses**, **Other countries**, **Unknown numbers**, **Unsaved numbers** or **Specific Starting Prefixes**
-- Choose what happens when a call matches:
-  - **Hang up immediately**
-  - **Block the number** and add it to your blocked list
-  - **Silence the number** so it goes through but doesn't ring or vibrate letting it go into call history without bothering you
-- Block every unsaved contact depending on the time of day through **Quiet Hours**
-- Saved contacts are never caught by the category rules
-- **Unblock** any contact whenever you want in the click of a button
-- **Whitelist** any number you wish from specific areas incase you blacklisted that entire country/starting prefix
+### 🛡️ Smart Blocking
+- Block calls from **Spam & scam**, **Businesses**, **Other countries**, **Unknown numbers**, **Unsaved numbers**, or numbers starting with a **prefix**
+- When a call matches, choose to **hang up**, **block** the number, or **silence** it
+- **Quiet hours:** during set hours, calls from unsaved numbers are handled by your chosen action
+- **Blocklist manager** for numbers, names, countries and prefixes
+- **Always allowed** list for numbers that should never be blocked
+- **Blocked calls log** with an Unblock button for numbers on your list
 
 ### 📊 Stats
-- Shows how many calls you identified as Spam,Scam,Safe
-- A visual daily/weekly/monthly graph
-- Your own activity (Votes,Reviews,Lookups)
-- How many estimated seconds you saved from instantly hanging up on spam/scam calls
-- Insights on Blocked Calls (Busiest time, Country and amount)
+- How many calls you've identified as Spam, Scam and Safe, with a tap to see the numbers and change their votes
+- Daily, weekly and monthly activity graphs
+- Your activity: votes, reviews and lookups
+- Estimated time saved by hanging up on blocked calls
+- Blocked call insights: your busiest time, where calls come from, and repeat callers
 
 ### 🔒 PIN / Fingerprint Lock
 - Protect the app with a **PIN** or your **fingerprint**
 - Keeps your lookups, blocked numbers and call history private if someone else picks up your phone
 
 ### ⚙️ Settings and Themes
-- Switch between **light** and **dark** themes
-- Smooth slide animations between screens and a bottom bar that highlights the screen you're on
+- **Light and dark** themes
+- **Call screen background** for all calls, plus a different background for any contact
+- **Backup and restore** of your blocklist, favorites and settings
+- **Missing permissions card** that shows what's still needed and takes you straight to each setting
+- **Contact us** for bug reports and feedback, with device details filled in
+- **What's new** after each update, and a version card with links to the privacy policy and licenses
+- Update prompts that let you download the new version straight from GitHub
 
 ### 📦 Widgets
-- Widget that shows that gives you shortcuts to: **Number Lookup, Dial, Recent Calls, Contacts**
-- Widget that shows Stats such as: **Identified Calls** (Spam,Scam, Safe) and **Your Activity** (Votes, Reviews, Lookups)
-- Both Widgets have previews before adding them to the home screen
+- **Shortcut widget:** Lookup, Dial, Recent calls and Contacts in one tap
+- **Stats widget:** Identified calls (Spam, Scam, Safe) and your activity (Votes, Reviews, Lookups)
+- Both widgets follow your light and dark theme, and show previews before you add them
 
 ### 🚀 More to Come
 - ShieldCall is a work in progress and new features are on the way.
 
 ## 🔐 Privacy
 
-- Your contacts and blocked numbers stay **on your device**
-- ShieldCall only keeps its own short history of the calls it screens, and doesn't read your system call log
-- When you vote or review, the number, your vote and your review are stored online so other users can see them. You must sign in with Google for this, and your account ID is stored as an anonymous identifier, never shown to anyone
+- Your contacts, blocklist, favorites, private notes, call history, speed dial and backgrounds stay **on your device**
+- ShieldCall keeps its own short history of the calls it handles. It doesn't read your system call log
+- Birthdays are saved in your phone's contacts, so they sync the same way as any other contact field
+- When you vote, review or report, the number, your vote, and your review are stored online so other users can see them. Signing in with Google is required for this. Your account ID is stored as an anonymous identifier, and it's never shown to other users
 - ShieldCall has no ads and does not sell your data
-- You can delete all data at any given moment when you sign in with your Google Account
-- Emergency calls (112,911 etc) work and ignore every redundant feature in the Dialer (can be tested in Settings)
+- You can delete all of your online data at any time from **Settings → Delete Account & Data**
+- Crash reports are sent to Firebase Crashlytics, and you can turn them off in **Settings → Privacy**
+- Emergency calls (112, 911 and similar) work normally, whatever features are turned on
 
 ## 🛠️ Setup
 
 1. Download the APK from [Releases](../../releases)
 2. Install it and open ShieldCall
-3. Grant the three permissions the welcome screen asks for:
+3. Grant the permissions the welcome screen asks for:
    - Contacts and phone state
    - Display over other apps
-   - Set ShieldCall as your default **Caller ID & spam app** as well as **Dial app**
-4. Look up a number, or wait for the next call (make sure **Automatic call lookup** is enabled)
+   - Set ShieldCall as your **Caller ID & spam app**
+   - Set ShieldCall as your **default phone app** if you want the full dialer and call screen
+4. Look up a number, or wait for the next call
+
+The **Settings** screen shows any permission that is still missing, and takes you straight to it.
 
 Simple and easy!
 
 ## ❓ Frequently Asked Questions
 
 ### Is ShieldCall free?
-Yes. ShieldCall is completely free and open-source, with no ads and no subscriptions.
+Yes. ShieldCall is free and open-source, with no ads and no subscriptions.
 
 ### Why does it need so many permissions?
-Contacts let it recognise people you know, the overlay permission lets it show the info card over your call screen, and the caller ID role is how Android lets an app see incoming numbers.
+Contacts let it recognise people you know. Display over other apps lets it show the caller card. The caller ID and phone app roles are how Android lets an app see incoming calls and place its own. Notifications power the missed call and reminder alerts.
+
+### Do I need to be the default phone app?
+No. As a caller ID and spam app, ShieldCall still identifies and blocks calls. Being the default phone app adds the dialer, the call screen, multiple calls, speed dial and the other calling features.
 
 ### Does ShieldCall work offline?
-Mostly. Contacts, blocking, your cached numbers and the built-in list all work offline. Voting, reviews and live community results need an internet connection.
+Mostly. Contacts, blocking, call history, your notes, speed dial, birthdays and the missed call strip all work offline. Voting, reviews and community results need an internet connection.
 
 ### Why do I need to sign in with Google to vote?
 Signing in keeps votes honest by allowing one vote per person on each number. Looking up numbers and receiving call info doesn't require signing in.
@@ -139,16 +167,22 @@ Signing in keeps votes honest by allowing one vote per person on each number. Lo
 Phone numbers don't say whether they belong to a business, so ShieldCall treats toll-free, premium-rate, shared-cost and VoIP numbers as business numbers. It's a best guess and may not be perfect.
 
 ### Can ShieldCall block calls on its own?
-Yes. When a call matches your rules or your blocked list, ShieldCall rejects it automatically. This works as long as it stays set as your Caller ID & spam app.
+Yes. When a call matches your rules or your blocklist, ShieldCall rejects, silences or hangs up on it automatically. This works as long as ShieldCall stays your Caller ID & spam app.
+
+### Can I test the call screen without a real call?
+Yes. Go to **Settings → Dial → Test call with fake name**. You can add a fake caller, a number, and looping audio that plays as if the caller is talking.
+
+### Will my calls still work if ShieldCall has a problem?
+Emergency calls always go through. If you're ever unsure, you can switch your default phone app back in Android's settings.
 
 ### What is the minimum Android version?
 ShieldCall requires Android 10 (API level 29) or higher.
 
 ## Bug Reports/Suggestions
-- Feel free to report bugs or give suggestions/feedback by opening an [issue](https://github.com/galaxyjammed/ShieldCall/issues) or [discussion](https://github.com/galaxyjammed/ShieldCall/discussions) thread!
-- You can also report bugs or give suggestions/feedback in the app itself through "Settings" -> "Contact Us"
+- Feel free to report bugs or give suggestions and feedback by opening an [issue](https://github.com/galaxyjammed/ShieldCall/issues) or [discussion](https://github.com/galaxyjammed/ShieldCall/discussions) thread!
+- You can also send bug reports or feedback in the app: **Settings → About → Contact us**
 
 ## 📄 License
 
-The source code is MIT licensed. The bundled number list and third-party services (Firebase) are subject to their own terms.
+The source code is MIT licensed. Firebase and Google services are subject to their own terms. Community votes, reviews and reports are contributed by users and are not covered by the MIT license.
 See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for how data is handled and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for the libraries used.
