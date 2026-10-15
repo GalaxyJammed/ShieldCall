@@ -63,7 +63,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.googlecode.libphonenumber:libphonenumber:8.13.50")
-    implementation("com.googlecode.libphonenumber:geocoder:3.40")
+    implementation("com.googlecode.libphonenumber:geocoder:3.41")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.fragment:fragment-ktx:1.9.1")
     implementation("androidx.credentials:credentials:1.5.0")
